@@ -3,6 +3,7 @@ import io.netty.buffer.ByteBuf;
 
 import io.netty.channel.*;
 
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -14,6 +15,7 @@ public class ProxyServerHandler extends ChannelInboundHandlerAdapter {
 
     public ProxyServerHandler(EventLoopGroup workerGroup) {
         _workerGroup = workerGroup;
+        _isWritable = true; // Sane default
     }
 
     @Override
@@ -49,6 +51,31 @@ public class ProxyServerHandler extends ChannelInboundHandlerAdapter {
         ((ByteBuf)msg).release(); // Discard data silently
     }
 
+    /**
+     * Handle backpressure from the client so we can throttle reads from the server
+     * @param ctx ChannelHandlerContext for this particular channel
+     */
+    @Override
+    public void channelWritabilityChanged(ChannelHandlerContext ctx) {
+
+        // Check for toggle from previous state
+        if (_isWritable != ctx.channel().isWritable()) {
+            _isWritable = !_isWritable;
+
+            if (_isWritable) {
+                // TODO (JR) add identification information
+                _logger.log(Level.FINE, "Renabling reads from");
+                 // TODO (JR) Reenable reads from the downstream server
+            } else {
+                // TODO (JR) add identification information
+                _logger.log(Level.FINE, "Disabling reads from");
+                // TOOD (JR) Disable reads from the downsteam server
+            }
+        }
+
+        // Forward on to the chain
+        ctx.fireChannelWritabilityChanged();
+    }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
@@ -62,6 +89,10 @@ public class ProxyServerHandler extends ChannelInboundHandlerAdapter {
      */
     private EventLoopGroup _workerGroup;
 
+    /**
+     * Track last writable state
+     */
+    private boolean _isWritable;
 
     private static final Logger _logger = Logger.getLogger(
             ProxyServerHandler.class.getName()
