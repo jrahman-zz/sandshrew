@@ -9,25 +9,41 @@ import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.spdy.*;
 
 /**
+ * Initialzer class for the {@link DownstreamServer} channel
  *
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
  */
 public class DownstreamChannelInitializer extends ChannelInitializer<SocketChannel> {
 
-    public DownstreamChannelInitializer(ChannelHandler httpHandler, ChannelHandler spdyHandler) {
+    /**
+     * Construct a {@link DownstreamChannelInitializer} instance
+     * @param spdyHandler {@link ChannelHandler} for SPDY connections
+     * @param version {@link SpdyVersion} to use
+     */
+    public DownstreamChannelInitializer(ChannelHandler spdyHandler, SpdyVersion version) {
         // TODO (JR) stash configuration information here
 
-        _httpHandler = httpHandler;
+        _httpHandler = null;
         _spdyHandler = spdyHandler;
 
         // TODO (JR) Make this configurable
-        _version = SpdyVersion.SPDY_3_1; // Default to latest version
+        _version = version;
+    }
+
+    /**
+     * Construct a {@link DownstreamChannelInitializer} instance
+     * @param httpHandler {@link ChannelHandler} for HTTP(S) connections
+     */
+    public DownstreamChannelInitializer(ChannelHandler httpHandler) {
+        _httpHandler = httpHandler;
+        _spdyHandler = null;
+        _version = null;
     }
 
     @Override
     public void initChannel(SocketChannel ch) throws Exception {
 
-        if (true) { // SPDY
+        if (_spdyHandler != null) { // SPDY
             initSpdyChannel(ch);
         } else { // HTTP
             initHttpChannel(ch);
@@ -36,7 +52,7 @@ public class DownstreamChannelInitializer extends ChannelInitializer<SocketChann
 
     /**
      * Configure a given channel for SPDY client use
-     * @param ch
+     * @param ch The {@link SocketChannel} to initialze for use
      */
     protected void initSpdyChannel(SocketChannel ch) {
         ChannelPipeline pipeline = ch.pipeline();
@@ -50,8 +66,8 @@ public class DownstreamChannelInitializer extends ChannelInitializer<SocketChann
     }
 
     /**
-     * Configure a given channel for HTTP client use
-     * @param ch
+     * Configure a given {@link SocketChannel} for HTTP client use
+     * @param ch The {@link SocketChannel} to initialize for use
      */
     protected void initHttpChannel(SocketChannel ch) {
 
@@ -60,19 +76,40 @@ public class DownstreamChannelInitializer extends ChannelInitializer<SocketChann
         // TODO (JR) Make the first two configurable
         pipeline.addLast("httpContentCompressor", new HttpContentCompressor());
         pipeline.addLast("httpContentDecompressor", new HttpContentDecompressor());
-
-        pipeline.addLast("httpClientCodec", new HttpClientCodec());
+        pipeline.addLast("httpClientCodec", new HttpClientCodec(MAX_HTTP_LINE_LENGTH, MAX_HTTP_HEADER_LENGTH, MAX_HTTP_CHUNK_LENGTH));
         pipeline.addLast("httpClientHandler", _httpHandler);
-
     }
 
     /**
      *
      */
-    private static final int MAX_SPDY_CONTENT_LENGTH = 1024 * 1024;
+    private static final int MAX_HTTP_LINE_LENGTH = 4 * 1024;
 
     /**
-     * Store which version of SPDY we should use
+     *
+     */
+    private static final int MAX_SPDY_HEADER_LENGTH = 8 * 1024;
+
+    /**
+     *
+     */
+    private static final int MAX_HTTP_HEADER_LENGTH = 8 * 1024;
+
+    /**
+     *
+     */
+    private static final int MAX_SPDY_CONTENT_LENGTH = 1024 * 1024; // 1MB chunks
+
+    /**
+     *
+     */
+    private static final int MAX_HTTP_CHUNK_LENGTH = 1024 * 1024; // 1MB chunks
+
+
+
+
+    /**
+     * Store which version of SPDY we should use, if any
      */
     private SpdyVersion _version;
 
