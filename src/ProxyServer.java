@@ -12,7 +12,7 @@ import java.util.logging.Logger;
 
 /**
  * Top level class for the proxy server
- * Creates the appropriate Netty EventLoopGroups and other data structures, configures them, and starts listening
+ * Creates the appropriate Netty {@link EventLoopGroup}s and other data structures, configures them, and starts listening
  * for incoming connections to proxy
  *
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
@@ -23,9 +23,9 @@ public class ProxyServer {
     /**
      * Create a proxy server listening on a given port
      * @param port The port on which to listen for incoming connections
-     * @param bossGroup The shared EventLoopGroup to use listen for incoming connections with
-     * @param workerGroup The shared EventLoopGroup to use for handling connections
-     * @param serverSocketChannelClass The Class to use for the server SocketChannel
+     * @param bossGroup The shared {@link EventLoopGroup} to use listen for incoming connections with
+     * @param workerGroup The shared {@link EventLoopGroup} to use for handling connections
+     * @param serverSocketChannelClass The {@link Class} to use for the server {@link SocketChannel}
      */
     public ProxyServer(int port, EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class serverSocketChannelClass) {
         _port = port;
@@ -41,7 +41,7 @@ public class ProxyServer {
 
     /**
      * Run the given proxy server, blocks until the server finishes running
-     * @return A ChannelFuture that can be waited upon to indicate closure of the listening socket
+     * @return A {@link ChannelFuture} that can be waited upon to indicate closure of the listening socket
      * @throws Exception
      */
     public ChannelFuture run() throws Exception {
@@ -54,6 +54,7 @@ public class ProxyServer {
                 .childHandler(new ChannelInitializer(_sslContext, _workerGroup));
 
         // Bind the accepting socket and start running
+        // TODO (JR) This looks like it's blocking, does it need to be made asynchronous??
         ChannelFuture f = _bootstrap.bind(_port).sync();
 
         // Wait until the server socket is closed
@@ -69,12 +70,12 @@ public class ProxyServer {
     int _port;
 
     /**
-     * EventLoopGroup for the listening socket
+     * Globally shared {@link EventLoopGroup} for the listening socket
      */
     private EventLoopGroup _bossGroup;
 
     /**
-     * EventLoopGroup for the client sockets
+     * Gloablly shared {@link EventLoopGroup} for the client sockets
      */
     private EventLoopGroup _workerGroup;
 
@@ -84,12 +85,12 @@ public class ProxyServer {
     private final SslContext _sslContext;
 
     /**
-     * Main server bootstrap for the proxy
+     * Main {@link ServerBootstrap} for the proxy
      */
     private ServerBootstrap _bootstrap;
 
     /**
-     *
+     * Implementation {@link Class} for the server socker channel
      */
     private Class _serverSocketChannelClass;
 

@@ -2,6 +2,7 @@
 import io.netty.buffer.ByteBuf;
 
 import io.netty.channel.*;
+import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMessage;
 
@@ -11,7 +12,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Primary handler for incoming http and spdy requests
+ * Primary handler for incoming HTTP and SPDY requests
  *
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
  */
@@ -24,19 +25,46 @@ public class ProxyServerHandler extends ChannelInboundHandlerAdapter {
     public ProxyServerHandler(EventLoopGroup workerGroup) {
         _workerGroup = workerGroup;
         _isWritable = true; // Sane default
+        _remoteIdentifier = null;
+        _downstreamServer = null;
+        _downstreamClient = null;
     }
 
+    /**
+     * Performs appropriate setup
+     * @param ctx The {@link ChannelHandlerContext} for this given channel
+     */
     @Override
     public void channelActive(final ChannelHandlerContext ctx) {
 
         // TODO (JR) Any setup operations
+        InetSocketAddress address = (InetSocketAddress)ctx.channel().remoteAddress();
+
+        // Use getHostString() to prevent a DNS lookup from happening
+        _remoteIdentifier = address.getHostString();
+
+        _logger.log(Level.FINE, "Connection opened with downstream: " + _remoteIdentifier);
+
+        // Forward if needed
+        ctx.fireChannelActive();
     }
 
+    /**
+     * Perform appropriate teardown
+     * @param ctx The {@link ChannelHandlerContext} for this given channel
+     */
     @Override
     public void channelInactive(final ChannelHandlerContext ctx) {
 
-        // TODO (HR) Any teardown operations
+        // TODO (JR) Any teardown operations
 
+        if (_remoteIdentifier != null) {
+            _logger.log(Level.FINE, "Connection closed with downstream: " + _remoteIdentifier);
+            _remoteIdentifier = null;
+        }
+
+        // Forward if needed
+        ctx.fireChannelInactive();
     }
 
     @Override
@@ -45,19 +73,24 @@ public class ProxyServerHandler extends ChannelInboundHandlerAdapter {
             HttpMessage req = (HttpMessage)msg;
             HttpHeaders header = req.headers();
 
-            // TODO Determine the route
+            // TODO (JR) Determine the route
             ProxyRoute route;
 
-            // TODO Update this??
-            DownstreamServer _downstreamServer = route.getPolicy().selectDownstreamServer();
-            DownstreamClient client = new DownstreamClient(ctx, _downstreamServer, _workerGroup);
+            // TODO (JR) Update this??
+            _downstreamServer = route.getPolicy().selectDownstreamServer();
+            _downstreamClient = new DownstreamClient(ctx, _downstreamServer, _workerGroup);
 
             // TODO (JR) Find better way to run this
             try {
-                client.run();
+                _downstreamClient.run();
             } catch (Exception ex) {
 
             }
+        } else if (isContent(msg)) {
+            // TODO (JR) Send this
+        } else {
+            // Badness
+            // TODO (JR) Handle badness
         }
     }
 
@@ -72,17 +105,10 @@ public class ProxyServerHandler extends ChannelInboundHandlerAdapter {
         if (_isWritable != ctx.channel().isWritable()) {
             _isWritable = !_isWritable;
 
-            InetSocketAddress address = (InetSocketAddress)ctx.channel().remoteAddress();
-            String remoteEntity = address.getHostString();
-
             if (_isWritable) {
-                // TODO (JR) add identification information
-                _logger.log(Level.FINE, "Backpressure from " + remoteEntity + " over, enabling reads from");
-                 // TODO (JR) Reenable reads from the downstream server
+                enableDownstreamReads();
             } else {
-                // TODO (JR) add identification information
-                _logger.log(Level.FINE, "Backpressure from " + remoteEntity + ", disabling reads from");
-                // TODO (JR) Disable reads from the downsteam server
+                disableDownstreamReads();
             }
         }
 
@@ -98,17 +124,45 @@ public class ProxyServerHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         // Close the connection when an exception is raised
+        // TODO (JR) Whack the downstream client at this point if it has been established
         cause.printStackTrace();
         ctx.close();
     }
 
     /**
-     * Check if a given input is a HttpMessage
-     * @param msg Object to check
-     * @return Returns true if the object is truly an HttpMessage
+     * Disable automatic reads from the downstream server, the remote client cannot keep up
+     */
+    protected void enableDownstreamReads() {
+        // TODO (JR) add identification information
+        _logger.log(Level.FINE, "Backpressure from " + _remoteIdentifier + " over, enabling reads from");
+        // TODO (JR) Reenable reads from the downstream server
+    }
+
+    /**
+     * Enable automatic reads from the downstream server, the remote client can keep up
+     */
+    protected void disableDownstreamReads() {
+        // TODO (JR) add identification information
+        _logger.log(Level.FINE, "Backpressure from " + _remoteIdentifier + ", disabling reads from");
+        // TODO (JR) Disable reads from the downsteam server
+    }
+
+    /**
+     * Check if a given input is a {@link HttpMessage} object
+     * @param msg {@link Object} to check
+     * @return Returns true if the object is truly a {@link HttpMessage} object
      */
     protected boolean isHeader(Object msg) {
         return msg instanceof HttpMessage;
+    }
+
+    /**
+     * Check if a given input is a {@link HttpContent} object
+     * @param msg {@link Object} to check
+     * @return Returns true if the object is truly a {@link HttpContent} object
+     */
+    protected boolean isContent(Object msg) {
+        return msg instanceof HttpContent;
     }
 
     /**
@@ -122,9 +176,24 @@ public class ProxyServerHandler extends ChannelInboundHandlerAdapter {
     private boolean _isWritable;
 
     /**
+     * Information about the remote agent
+     */
+    private String _remoteIdentifier;
+
+    /**
      * Downstream server we are proxying for
      */
     private DownstreamServer _downstreamServer;
+
+    /**
+     * {@link DownstreamClient} to transmit data to the {@link DownstreamServer}
+     */
+    private DownstreamClient _downstreamClient;
+
+    /**
+     * {@link ChannelFuture} for the Close event on the downstream client
+     */
+    private ChannelFuture _downstreamClientFuture;
 
     private static final Logger _logger = Logger.getLogger(
             ProxyServerHandler.class.getName()

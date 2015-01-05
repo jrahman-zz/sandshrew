@@ -43,12 +43,12 @@ class ProxySpdyOrHttpChooser extends SpdyOrHttpChooser {
 
     /**
      * Build HTTP response handling pipeline based on configuration
-     * @param ctx ChannelHandlerContext for the current channel
+     * @param ctx {@link ChannelHandlerContext} for the current channel
      */
     @Override
     protected void addHttpHandlers(ChannelHandlerContext ctx) {
         ChannelPipeline p = ctx.pipeline();
-        p.addLast("httpContentCompressor", new HttpContentCompressor()); // TODO (JR) configurable
+        p.addLast("httpContentCompressor", new HttpContentCompressor()); // TODO (JR) make configurable
         p.addLast("httpRequestDecoder", new HttpRequestDecoder());
         p.addLast("httpRequestHandler", null);
 
@@ -70,7 +70,7 @@ class ProxySpdyOrHttpChooser extends SpdyOrHttpChooser {
 
     /**
      * Build the SPDY response handling pipeline based on configuration
-     * @param ctx ChannelHandlerContext for the current channel
+     * @param ctx {@link ChannelHandlerContext} for the current channel
      */
     @Override
     protected void addSpdyHandlers(ChannelHandlerContext ctx, SpdyVersion version) {
@@ -83,14 +83,22 @@ class ProxySpdyOrHttpChooser extends SpdyOrHttpChooser {
         // TODO (JR) finish this p.addLast("httpRequestHandler", null);
     }
 
+    /**
+     *
+     * @return
+     */
     @Override
     protected ChannelInboundHandler createHttpRequestHandlerForHttp() {
-        return null; // TODO (JR) Implement this
+        return _httpHandler;
     }
 
+    /**
+     *
+     * @return
+     */
     @Override
     protected ChannelInboundHandler createHttpRequestHandlerForSpdy() {
-        return createHttpRequestHandlerForHttp();
+        return _spdyHandler;
     }
 
     private static final int MAX_CONTENT_LENGTH = 1024 * 100;
@@ -99,7 +107,13 @@ class ProxySpdyOrHttpChooser extends SpdyOrHttpChooser {
             ProxySpdyOrHttpChooser.class.getName()
     );
 
+    /**
+     * {@link ChannelHandler} for HTTP and HTTPS connections
+     */
     private ChannelHandler _httpHandler;
 
+    /**
+     * {@link ChannelHandler} for SPDY connections
+     */
     private ChannelHandler _spdyHandler;
 }

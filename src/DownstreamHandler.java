@@ -1,26 +1,58 @@
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpMessage;
+import io.netty.handler.codec.http.HttpContent;
+import io.netty.handler.codec.http.HttpResponse;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Handler for downstream connections to the server
+ * Handler for client connections to the downstream server
  *
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
  */
 public class DownstreamHandler extends ChannelInboundHandlerAdapter {
-    
 
+
+    /**
+     * Construct an instance of the {@link DownstreamHandler}
+     * @param upstreamChannel The {@link ChannelHandlerContext} to send data upstream through
+     * @param downstreamServer The {@link DownstreamServer} we are sending data to
+     */
     public DownstreamHandler(ChannelHandlerContext upstreamChannel, DownstreamServer downstreamServer) {
         _upstreamChannel = upstreamChannel;
         _downstreamServer = downstreamServer;
         _isWritable = true; // Sane default
     }
 
+    /**
+     * Perform appropriate initialization
+     * @param ctx The ChannelHandlerContext for this channel
+     */
+    @Override
+    public void channelActive(final ChannelHandlerContext ctx) {
+
+        // Forward if needed
+        ctx.fireChannelActive();
+    }
+
+    /**
+     * Perform appropriate teardown
+     * @param ctx The {@link ChannelHandlerContext} for this channel
+     */
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) {
+
+        // Forward if needed
+        ctx.fireChannelInactive();
+    }
+
+    /**
+     * Handle read events from the downstream server
+     * @param ctx The {@link ChannelHandlerContext} for this channel
+     * @param msg A {@link HttpResponse} or {@link HttpContent} from the {@link DownstreamServer}
+     */
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
 
@@ -71,12 +103,12 @@ public class DownstreamHandler extends ChannelInboundHandlerAdapter {
     }
 
     /**
-     * ChannelHandlerContext for the upstream channel data should be sent to
+     * {@link ChannelHandlerContext} for the upstream channel data should be sent to
      */
     private ChannelHandlerContext _upstreamChannel;
 
     /**
-     * Downstream server this client channel is proxying to
+     * {@link DownstreamServer} this client channel is proxying to
      */
     private DownstreamServer _downstreamServer;
 
