@@ -1,6 +1,7 @@
 
-package org.rahmanj.sandshrew;
+package org.rahmanj.sandshrew.routes;
 
+import org.rahmanj.sandshrew.DownstreamServer;
 import org.rahmanj.sandshrew.policy.ProxyPolicy;
 
 /**
@@ -10,10 +11,18 @@ import org.rahmanj.sandshrew.policy.ProxyPolicy;
  */
 public class ProxyRoute {
 
+    /**
+     * Construct a {@link ProxyRoute} instance
+     * @param endpoint {@link ProxyEndpoint} publicly exposed endpoint for this route
+     * @param policy The {@link ProxyPolicy} that decides which {@link DownstreamServer} should receive traffic
+     */
     public ProxyRoute(ProxyEndpoint endpoint, ProxyPolicy policy) {
         _endpoint = endpoint;
         _policy = policy;
     }
+
+    // TODO (JR) We need to add transformation and extraction so that postfixes of a wildcard
+    // match can be postfixed to the end of the DownstreamServer postfix
 
     /**
      * Get the current proxy policy in effect

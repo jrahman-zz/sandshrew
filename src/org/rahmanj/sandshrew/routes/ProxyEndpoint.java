@@ -1,5 +1,5 @@
 
-package org.rahmanj.sandshrew;
+package org.rahmanj.sandshrew.routes;
 
 /**
  * External endpoint for the proxy server
