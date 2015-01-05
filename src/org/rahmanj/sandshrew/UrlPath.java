@@ -1,3 +1,6 @@
+
+package org.rahmanj.sandshrew;
+
 /**
  * Represents a url path off of a given proxy
  *

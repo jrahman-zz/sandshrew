@@ -14,6 +14,8 @@
 * under the License.
 */
 
+package org.rahmanj.sandshrew;
+
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
@@ -32,6 +34,12 @@ public class SpdyClientStreamIdHandler extends ChannelOutboundHandlerAdapter {
         return msg instanceof HttpMessage;
     }
 
+    /**
+     * Handle writes by updating the stream identifier in accordance with the SPDY spec
+     * @param ctx {@link ChannelHandlerContext} for this channel
+     * @param msg {@link HttpMessage} to write
+     * @param promise {@link ChannelPromise}
+     */
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
         if (acceptOutboundMessage(msg)) {
@@ -42,6 +50,8 @@ public class SpdyClientStreamIdHandler extends ChannelOutboundHandlerAdapter {
                 currentStreamId += 2;
             }
         }
+
+        // Flush down the remainder of the pipeline
         ctx.write(msg, promise);
     }
 }

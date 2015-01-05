@@ -1,3 +1,6 @@
+
+package org.rahmanj.sandshrew;
+
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.concurrent.*;
@@ -15,7 +18,7 @@ public class Server {
 
     public Server() {
 
-        _proxyServers = new HashMap<int, ProxyServer>();
+        _proxyServers = new HashMap<Integer, ProxyServer>();
 
     }
 
@@ -88,7 +91,7 @@ public class Server {
     public EventLoopGroup _bossGroup;
     public EventLoopGroup _workerGroup;
 
-    public HashMap<int, ProxyServer> _proxyServers;
+    public HashMap<Integer, ProxyServer> _proxyServers;
 
     private static final Logger _logger = Logger.getLogger(
             Server.class.getName()

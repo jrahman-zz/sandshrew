@@ -1,3 +1,6 @@
+
+package org.rahmanj.sandshrew;
+
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**

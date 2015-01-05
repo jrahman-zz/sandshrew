@@ -1,7 +1,7 @@
 
-import io.netty.channel.ChannelHandlerContext;
+package org.rahmanj.sandshrew;
+
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.channel.ChannelPromise;
 
 /**
  * Handler to restrict the maximum waiting time for an inbound message

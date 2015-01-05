@@ -1,5 +1,5 @@
 
-import io.netty.buffer.ByteBuf;
+package org.rahmanj.sandshrew;
 
 import io.netty.channel.*;
 import io.netty.handler.codec.http.HttpContent;

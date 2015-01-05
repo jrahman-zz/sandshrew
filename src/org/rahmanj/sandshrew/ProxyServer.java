@@ -1,8 +1,10 @@
 
+package org.rahmanj.sandshrew;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.handler.ssl.SslContext;
 
 import org.eclipse.jetty.npn.NextProtoNego;
@@ -51,7 +53,7 @@ public class ProxyServer {
                 .option(ChannelOption.SO_BACKLOG, 128)
                 .childOption(ChannelOption.SO_KEEPALIVE, true)
                 // This is where we need to handle configuration changes, we reset this
-                .childHandler(new ChannelInitializer(_sslContext, _workerGroup));
+                .childHandler(new ProxyChannelInitializer(_sslContext, _workerGroup));
 
         // Bind the accepting socket and start running
         // TODO (JR) This looks like it's blocking, does it need to be made asynchronous??
@@ -90,7 +92,7 @@ public class ProxyServer {
     private ServerBootstrap _bootstrap;
 
     /**
-     * Implementation {@link Class} for the server socker channel
+     * Implementation {@link Class} for the {@link ServerSocketChannel}
      */
     private Class _serverSocketChannelClass;
 

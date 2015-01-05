@@ -1,3 +1,6 @@
+
+package org.rahmanj.sandshrew;
+
 /**
  * Define details of a given proxy route
  *

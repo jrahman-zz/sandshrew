@@ -1,4 +1,6 @@
 
+package org.rahmanj.sandshrew;
+
 /**
  * Represents an service, either a proxy server endpoint, or a downstream server
  *

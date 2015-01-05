@@ -1,8 +1,11 @@
 
+package org.rahmanj.sandshrew;
+
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Records the statistics for a given downstream server
+ * Records the statistics for a given downstream serve. Designed to be fully thread safe so a single instance
+ * can be shared across all threads without and defensive copies being made. Locking is minimal, atomics used instead
  *
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
  */

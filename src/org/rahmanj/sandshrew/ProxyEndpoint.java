@@ -1,3 +1,6 @@
+
+package org.rahmanj.sandshrew;
+
 /**
  * External endpoint for the proxy server
  *

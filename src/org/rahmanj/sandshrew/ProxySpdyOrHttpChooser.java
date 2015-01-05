@@ -1,3 +1,6 @@
+
+package org.rahmanj.sandshrew;
+
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandler;
@@ -19,7 +22,7 @@ class ProxySpdyOrHttpChooser extends SpdyOrHttpChooser {
      * @param httpHandler
      * @param spdyHandler
      */
-    public ProxySpdyOrHttpChooser(ChannelHandler httpHandler, ChannelHandler spdyHandler) {
+    public ProxySpdyOrHttpChooser(ChannelInboundHandler httpHandler, ChannelInboundHandler spdyHandler) {
         super(MAX_CONTENT_LENGTH, MAX_CONTENT_LENGTH);
 
         _httpHandler = httpHandler;
@@ -33,7 +36,7 @@ class ProxySpdyOrHttpChooser extends SpdyOrHttpChooser {
      * @param maxSpdyContentLength
      * @param maxHttpContentLength
      */
-    public ProxySpdyOrHttpChooser(ChannelHandler httpHandler, ChannelHandler spdyHandler, int maxSpdyContentLength, int maxHttpContentLength) {
+    public ProxySpdyOrHttpChooser(ChannelInboundHandler httpHandler, ChannelInboundHandler spdyHandler, int maxSpdyContentLength, int maxHttpContentLength) {
         super(maxSpdyContentLength, maxHttpContentLength);
 
         _httpHandler = httpHandler;
@@ -110,10 +113,10 @@ class ProxySpdyOrHttpChooser extends SpdyOrHttpChooser {
     /**
      * {@link ChannelHandler} for HTTP and HTTPS connections
      */
-    private ChannelHandler _httpHandler;
+    private ChannelInboundHandler _httpHandler;
 
     /**
      * {@link ChannelHandler} for SPDY connections
      */
-    private ChannelHandler _spdyHandler;
+    private ChannelInboundHandler _spdyHandler;
 }
