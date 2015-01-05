@@ -2,7 +2,7 @@
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslContext;
 
 import org.eclipse.jetty.npn.NextProtoNego;

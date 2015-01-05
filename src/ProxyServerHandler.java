@@ -28,6 +28,7 @@ public class ProxyServerHandler extends ChannelInboundHandlerAdapter {
         _remoteIdentifier = null;
         _downstreamServer = null;
         _downstreamClient = null;
+        _downstreamClientFuture = null;
     }
 
     /**
@@ -82,20 +83,20 @@ public class ProxyServerHandler extends ChannelInboundHandlerAdapter {
 
             // TODO (JR) Find better way to run this
             try {
-                _downstreamClient.run();
+                _downstreamClientFuture = _downstreamClient.run();
             } catch (Exception ex) {
-
+                // TODO (JR) Blow things up as needed
             }
         } else if (isContent(msg)) {
-            // TODO (JR) Send this
+            // TODO (JR) Send stuff to the downstream server
         } else {
             // Badness
-            // TODO (JR) Handle badness
+            _logger.log(Level.WARNING, "Unknown message type read");
         }
     }
 
     /**
-     * Handle backpressure from the client so we can throttle reads from the server
+     * Handle backpressure from the client so we can throttle reads from the {@link DownstreamServer}
      * @param ctx ChannelHandlerContext for this particular channel
      */
     @Override
@@ -166,7 +167,7 @@ public class ProxyServerHandler extends ChannelInboundHandlerAdapter {
     }
 
     /**
-     * Shared worker group used for all async background IO
+     * Shared {@link EventLoopGroup} used for all async background IO
      */
     private EventLoopGroup _workerGroup;
 
@@ -181,7 +182,7 @@ public class ProxyServerHandler extends ChannelInboundHandlerAdapter {
     private String _remoteIdentifier;
 
     /**
-     * Downstream server we are proxying for
+     * {@link DownstreamServer} we are proxying for
      */
     private DownstreamServer _downstreamServer;
 

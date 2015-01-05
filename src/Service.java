@@ -30,7 +30,7 @@ public class Service {
     /**
      * Possible endpoint protocols
      */
-    public final class ServiceProtocol {
+    public static final class ServiceProtocol {
         private ServiceProtocol() {}
 
         public static final int HTTP = 1;
