@@ -6,30 +6,14 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
  */
-public class DownstreamServer {
+public class DownstreamServer extends Service {
 
     public DownstreamServer(String hostname, int port) {
-        _port = port;
-        _hostname = hostname;
+        super(hostname, port);
         _throttleCount = new AtomicInteger(0);
         _stats = new DownstreamStats();
     }
 
-    /**
-     * Get the hostname for the downstream server
-     * @return A String hostname for the downstream server
-     */
-    public String getHostname() {
-        return _hostname;
-    }
-
-    /**
-     * Get the port for the downstream server
-     * @return An int port for the downstream server
-     */
-    public int getPort() {
-        return _port;
-    }
 
     /**
      * Determines if writting to the given endpoint is currently being throttled by backpressure
@@ -54,17 +38,6 @@ public class DownstreamServer {
     public int incrementThrottle() {
         return _throttleCount.incrementAndGet();
     }
-
-    /**
-     *
-     */
-    private final String _hostname;
-
-    /**
-     *
-     */
-    private final int _port;
-
 
 
     /**

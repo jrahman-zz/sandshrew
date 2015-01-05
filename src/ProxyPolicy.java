@@ -5,5 +5,11 @@
  */
 public class ProxyPolicy {
 
+    public ProxyPolicy(DownstreamServer[] servers) {
 
+    }
+
+
+
+    private DownstreamServer[] _servers;
 }
