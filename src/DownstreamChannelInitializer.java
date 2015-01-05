@@ -1,3 +1,4 @@
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
@@ -13,8 +14,11 @@ import io.netty.handler.codec.spdy.*;
  */
 public class DownstreamChannelInitializer extends ChannelInitializer<SocketChannel> {
 
-    public DownstreamChannelInitializer() {
+    public DownstreamChannelInitializer(ChannelHandler httpHandler, ChannelHandler spdyHandler) {
         // TODO (JR) stash configuration information here
+
+        _httpHandler = httpHandler;
+        _spdyHandler = spdyHandler;
 
         // TODO (JR) Make this configurable
         _version = SpdyVersion.SPDY_3_1; // Default to latest version
@@ -42,7 +46,7 @@ public class DownstreamChannelInitializer extends ChannelInitializer<SocketChann
         pipeline.addLast("spdyHttpEncoder", new SpdyHttpEncoder(_version));
         pipeline.addLast("spdyHttpDecoder", new SpdyHttpDecoder(_version, MAX_SPDY_CONTENT_LENGTH));
         pipeline.addLast("spdyStreamIdHandler", new SpdyClientStreamIdHandler());
-        // TODO (JR) pipeline.
+        pipeline.addLast("spdyClientHandler", _spdyHandler);
     }
 
     /**
@@ -58,8 +62,7 @@ public class DownstreamChannelInitializer extends ChannelInitializer<SocketChann
         pipeline.addLast("httpContentDecompressor", new HttpContentDecompressor());
 
         pipeline.addLast("httpClientCodec", new HttpClientCodec());
-        pipeline.addLast("httpObjectAggregator", new HttpObjectAggregator(1048576)); // TODO (JR) Replace arbitrary constant
-        // TODO (JR) Complete this pipeline.addLast("httpClientHandler", null);
+        pipeline.addLast("httpClientHandler", _httpHandler);
 
     }
 
@@ -73,5 +76,7 @@ public class DownstreamChannelInitializer extends ChannelInitializer<SocketChann
      */
     private SpdyVersion _version;
 
-    private static
+    private ChannelHandler _httpHandler;
+
+    private ChannelHandler _spdyHandler;
 }

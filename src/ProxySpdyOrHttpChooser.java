@@ -1,10 +1,8 @@
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandler;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.http.HttpContentCompressor;
-import io.netty.handler.codec.http.HttpObjectAggregator;
-import io.netty.handler.codec.http.HttpRequestDecoder;
-import io.netty.handler.codec.http.HttpResponseEncoder;
+import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.spdy.*;
 
 import java.util.logging.Logger;
@@ -16,32 +14,63 @@ import java.util.logging.Logger;
  */
 class ProxySpdyOrHttpChooser extends SpdyOrHttpChooser {
 
-    public ProxySpdyOrHttpChooser() {
-        this(MAX_CONTENT_LENGTH, MAX_CONTENT_LENGTH);
+    /**
+     *
+     * @param httpHandler
+     * @param spdyHandler
+     */
+    public ProxySpdyOrHttpChooser(ChannelHandler httpHandler, ChannelHandler spdyHandler) {
+        super(MAX_CONTENT_LENGTH, MAX_CONTENT_LENGTH);
+
+        _httpHandler = httpHandler;
+        _spdyHandler = spdyHandler;
     }
 
-    public ProxySpdyOrHttpChooser(int maxSpdyContentLength, int maxHttpContentLength) {
+    /**
+     *
+     * @param httpHandler
+     * @param spdyHandler
+     * @param maxSpdyContentLength
+     * @param maxHttpContentLength
+     */
+    public ProxySpdyOrHttpChooser(ChannelHandler httpHandler, ChannelHandler spdyHandler, int maxSpdyContentLength, int maxHttpContentLength) {
         super(maxSpdyContentLength, maxHttpContentLength);
+
+        _httpHandler = httpHandler;
+        _spdyHandler = spdyHandler;
     }
 
 
     /**
      * Build HTTP response handling pipeline based on configuration
-     * @param ctx
+     * @param ctx ChannelHandlerContext for the current channel
      */
     @Override
     protected void addHttpHandlers(ChannelHandlerContext ctx) {
         ChannelPipeline p = ctx.pipeline();
         p.addLast("httpContentCompressor", new HttpContentCompressor()); // TODO (JR) configurable
         p.addLast("httpRequestDecoder", new HttpRequestDecoder());
-        p.addLast("httpResponseEncoder", new HttpResponseEncoder());
-        p.addLast("httpChunkAggregator", new HttpObjectAggregator(maxHttpContentLength));
-        // TODO (JR) finish this p.addLast("httpRequestHandler", null);
+        p.addLast("httpRequestHandler", null);
+
+        /**
+         * NOTE: We need to further consider the excessive overhead here in the different pipeline stages
+         * On the client <-> proxy connection:
+         *  For incoming messages, we do need a full HTTP pipeline, feeding HttpMessage and HttpContent objects
+         *  For outgoing messages, we only need to feed raw bytes back across the wire
+         * On the proxy <-> server connection:
+         *  For outgoing messages, we simple need to feed raw bytes across the wire
+         *  For incoming messages, we simply need to feed raw bytes across the wire
+         *
+         *  Additional considerations need to be made for cases when each connection has compression
+         *  where we may be able to skip compression on one of the two connections to avoid decompressing
+         *  and then subsequently recompressing the same data
+         *  Mixed cases also need to be considered
+         */
     }
 
     /**
      * Build the SPDY response handling pipeline based on configuration
-     * @param ctx
+     * @param ctx ChannelHandlerContext for the current channel
      */
     @Override
     protected void addSpdyHandlers(ChannelHandlerContext ctx, SpdyVersion version) {
@@ -49,8 +78,7 @@ class ProxySpdyOrHttpChooser extends SpdyOrHttpChooser {
         ChannelPipeline p = ctx.pipeline();
         p.addLast("spdyFrameCodec", new SpdyFrameCodec(version));
         p.addLast("spdySessionHandler", new SpdySessionHandler(version, true));
-        p.addLast("spdyHttpEncoder", new SpdyHttpEncoder(version));
-        p.addLast("spdyHttpDecoder", new SpdyHttpDecoder(version, maxSpdyContentLength));
+        p.addLast("spdyHttpObjectDecoder", new SpdyHeaderBlockRawDecoder(version, maxHttpHeaderLength));
         p.addLast("spdyStreamIdHandler", new SpdyHttpResponseStreamIdHandler());
         // TODO (JR) finish this p.addLast("httpRequestHandler", null);
     }
@@ -70,4 +98,8 @@ class ProxySpdyOrHttpChooser extends SpdyOrHttpChooser {
     private static final Logger _logger = Logger.getLogger(
             ProxySpdyOrHttpChooser.class.getName()
     );
+
+    private ChannelHandler _httpHandler;
+
+    private ChannelHandler _spdyHandler;
 }
