@@ -4,6 +4,7 @@ package org.rahmanj.sandshrew;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.spdy.SpdyVersion;
 
 /**
  * Handler for sending the request from the proxy to the downstream client
@@ -23,11 +24,27 @@ public class DownstreamClient {
         _downstreamServer = server;
         _workerGroup = workerGroup;
         _handler = null;
+        _spdyVersion = null;
+    }
+
+    /**
+     * Construct an {@link DownstreamClient} instance
+     * @param upstreamChannel {@link ChannelHandlerContext} for the upstream channel
+     * @param server {@link DownstreamServer} we are connecting to
+     * @param workerGroup The shared {@link EventLoopGroup} that is backing our async IO
+     * @param spdyVersion The {@link SpdyVersion} to use if SPDY is requested
+     */
+    public DownstreamClient(ChannelHandlerContext upstreamChannel, DownstreamServer server, EventLoopGroup workerGroup, SpdyVersion spdyVersion) {
+        _upstreamChannel = upstreamChannel;
+        _downstreamServer = server;
+        _workerGroup = workerGroup;
+        _handler = null;
+        _spdyVersion = spdyVersion;
     }
 
     /**
      * Start the asynchronous client
-     * @return Returns a {@link ChannelFuture} for the closure of the client {@link Channel}
+     * @return Returns a {@link ChannelFuture} for the connection of the client and {@link DownstreamServer}
      * @throws Exception
      */
     public ChannelFuture run() throws Exception {
@@ -41,20 +58,22 @@ public class DownstreamClient {
         Class socketChannelClass = NioSocketChannel.class;
 
         // Configure the downstream client to our liking
+        // TODO (JR) Are there any other options we would like to tune???
         Bootstrap b = new Bootstrap();
         b.group(_workerGroup)
                 .channel(socketChannelClass)
-                .option(ChannelOption.SO_KEEPALIVE, true)
-                // TODO (JR) Add configuration information
-                .handler(new DownstreamChannelInitializer(_handler, _handler));
+                .option(ChannelOption.SO_KEEPALIVE, true);
+
+        if (_spdyVersion == null) {
+            // No SPDY
+            b.handler(new DownstreamChannelInitializer(_handler));
+        } else {
+            // Use SPDY
+            b.handler(new DownstreamChannelInitializer(_handler, _spdyVersion));
+        }
 
         // Initiate the downstream connection
-        // TODO (JR) does this connection need to be asynchronous, looks synchronous right now??
-        ChannelFuture f = b.connect(hostname, port).sync();
-
-        // Wait until the connection is closed
-        // TODO, make this more comprehensive and robust
-        return f.channel().closeFuture();
+        return b.connect(hostname, port);
     }
 
     /**
@@ -77,4 +96,9 @@ public class DownstreamClient {
      * to maximize reuse of threads and reduce latency
      */
     private EventLoopGroup _workerGroup;
+
+    /**
+     *
+     */
+    private SpdyVersion _spdyVersion;
 }
