@@ -1,6 +1,8 @@
 
 package org.rahmanj.sandshrew;
 
+import org.rahmanj.sandshrew.routes.Service;
+
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**

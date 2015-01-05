@@ -4,11 +4,12 @@ package org.rahmanj.sandshrew;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.spdy.SpdyVersion;
 
 /**
- * Handler for sending the request from the proxy to the downstream client. Most of the public methods should
- * only be called from the ProxyServerHandler which owns this client and the thread in which thathandler
+ * Client for sending the request from the proxy to the downstream client. Most of the public methods should
+ * only be called from the UpstreamHandler which owns this client and the thread in which that handler
  * is currently running
  *
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
@@ -17,11 +18,12 @@ public class DownstreamClient {
 
     /**
      * Construct an {@link DownstreamClient} instance
-     * @param upstreamChannel {@link ChannelHandlerContext} for the upstream channel
+     *
+     * @param upstreamChannel {@link UpstreamHandler} for the upstream channel
      * @param server {@link DownstreamServer} we are connecting to
      * @param workerGroup The shared {@link EventLoopGroup} that is backing our async IO
      */
-    public DownstreamClient(Channel upstreamChannel, DownstreamServer server, EventLoopGroup workerGroup) {
+    public DownstreamClient(UpstreamHandler upstreamChannel, DownstreamServer server, EventLoopGroup workerGroup) {
         _upstreamChannel = upstreamChannel;
         _downstreamServer = server;
         _workerGroup = workerGroup;
@@ -32,12 +34,12 @@ public class DownstreamClient {
 
     /**
      * Construct an {@link DownstreamClient} instance
-     * @param upstreamChannel {@link ChannelHandlerContext} for the upstream channel
+     * @param upstreamChannel {@link UpstreamHandler} for the upstream channel
      * @param server {@link DownstreamServer} we are connecting to
      * @param workerGroup The shared {@link EventLoopGroup} that is backing our async IO
      * @param spdyVersion The {@link SpdyVersion} to use if SPDY is requested
      */
-    public DownstreamClient(Channel upstreamChannel, DownstreamServer server, EventLoopGroup workerGroup, SpdyVersion spdyVersion) {
+    public DownstreamClient(UpstreamHandler upstreamChannel, DownstreamServer server, EventLoopGroup workerGroup, SpdyVersion spdyVersion) {
         _upstreamChannel = upstreamChannel;
         _downstreamServer = server;
         _workerGroup = workerGroup;
@@ -47,7 +49,8 @@ public class DownstreamClient {
     }
 
     /**
-     * Start the asynchronous client
+     * Starts the {@link DownstreamClient} asynchronously
+     *
      * @return Returns a {@link ChannelFuture} for the connection of the client and {@link DownstreamServer}
      * @throws Exception
      */
@@ -80,11 +83,32 @@ public class DownstreamClient {
         return _bootstrap.connect(hostname, port);
     }
 
+    /**
+     * Asynchronously shutdown the client. Allows pending messages to be sent and any pending responses to
+     * be sent to the upstream client
+     * @return
+     */
+    public ChannelFuture shutdown() {
+        _handler.shutdown();
+    }
+
+
+    public void send(HttpObject msg) {
+        /** TODO (JR) Improve this by better tracking the state of the client
+         * even in the face of concurrent operations and potential race conditions
+         */
+
+        // Forward onto the handler
+        _handler.send(msg);
+    }
+
     public void throttleReads(boolean read) {
         // This gets nasty because we have accesses to this from the DownstreamHandler thread
         // when the channel finally gets initialzed and we need to set it
-        // But we also have access from the ProxyServerHandler thread when it tries to set
+        // But we also have access from the UpstreamHandler thread when it tries to set
         // the AutoRead value to throttle reads from the downstream server
+
+        // TODO (JR) Implement this
     }
 
     /**
@@ -107,9 +131,9 @@ public class DownstreamClient {
     private Channel _channel;
 
     /**
-     * Channel back to the upstream client making the request
+     * {@link UpstreamHandler} for the upstream channel
      */
-    private Channel _upstreamChannel;
+    private UpstreamHandler _upstreamChannel;
 
     /**
      * Information about the {@link DownstreamServer} satisfying the request

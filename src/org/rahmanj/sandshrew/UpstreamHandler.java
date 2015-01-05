@@ -7,28 +7,46 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMessage;
 
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.rahmanj.sandshrew.routes.ProxyRoute;
 
 /**
  * Primary handler for incoming HTTP and SPDY requests
  *
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
  */
-public class ProxyServerHandler extends ChannelInboundHandlerAdapter {
+public class UpstreamHandler extends ChannelInboundHandlerAdapter {
 
     /**
-     * Construct an instance of the ProxyServerHandler using the given EventLoopGroup
+     * Construct an instance of the UpstreamHandler using the given EventLoopGroup
      * @param workerGroup The shared EventLoopGroup to use for async IO
      */
-    public ProxyServerHandler(EventLoopGroup workerGroup) {
+    public UpstreamHandler(EventLoopGroup workerGroup) {
         _workerGroup = workerGroup;
-        _isWritable = true; // Sane default
+        _writable = true; // Sane default
         _remoteIdentifier = null;
         _downstreamServer = null;
         _downstreamClient = null;
         _downstreamClientFuture = null;
+        _channel = null;
+
+        _throttled = false;
+    }
+
+    /**
+     *
+     * @param throttle
+     */
+    public void throttleClientReads(boolean throttle) {
+
+        // TODO (JR) Synchronoize this since will be called from multiple threads
+        _throttled = throttle;
+
+        if (_channel != null) {
+            _channel.config().setAutoRead(!_throttled);
+        }
     }
 
     /**
@@ -38,6 +56,8 @@ public class ProxyServerHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelActive(final ChannelHandlerContext ctx) {
 
+        // TODO (JR) Synchronize this
+
         // TODO (JR) Any setup operations
         InetSocketAddress address = (InetSocketAddress)ctx.channel().remoteAddress();
 
@@ -45,6 +65,11 @@ public class ProxyServerHandler extends ChannelInboundHandlerAdapter {
         _remoteIdentifier = address.getHostString();
 
         _logger.log(Level.FINE, "Connection opened with downstream: " + _remoteIdentifier);
+
+        _channel = ctx.channel();
+
+        // Use the established throttling settings
+        _channel.config().setAutoRead(!_throttled);
 
         // Forward if needed
         ctx.fireChannelActive();
@@ -79,7 +104,7 @@ public class ProxyServerHandler extends ChannelInboundHandlerAdapter {
 
             // TODO (JR) Update this??
             _downstreamServer = route.getPolicy().selectDownstreamServer();
-            _downstreamClient = new DownstreamClient(ctx.channel(), _downstreamServer, _workerGroup);
+            _downstreamClient = new DownstreamClient(this, _downstreamServer, _workerGroup);
 
             try {
                 // Start the downstream client connection
@@ -110,10 +135,10 @@ public class ProxyServerHandler extends ChannelInboundHandlerAdapter {
     public void channelWritabilityChanged(ChannelHandlerContext ctx) {
 
         // Check for toggle from previous state
-        if (_isWritable != ctx.channel().isWritable()) {
-            _isWritable = !_isWritable;
+        if (_writable != ctx.channel().isWritable()) {
+            _writable = !_writable;
 
-            if (_isWritable) {
+            if (_writable) {
                 enableDownstreamReads();
             } else {
                 disableDownstreamReads();
@@ -181,7 +206,7 @@ public class ProxyServerHandler extends ChannelInboundHandlerAdapter {
     /**
      * Track last writable state
      */
-    private boolean _isWritable;
+    private boolean _writable;
 
     /**
      * Information about the remote agent
@@ -203,7 +228,17 @@ public class ProxyServerHandler extends ChannelInboundHandlerAdapter {
      */
     private ChannelFuture _downstreamClientFuture;
 
+    /**
+     * Tracks if the channel is read throttled or not
+     */
+    private boolean _throttled;
+
+    /**
+     * {@link Channel} this handler is managing
+     */
+    private Channel _channel;
+
     private static final Logger _logger = Logger.getLogger(
-            ProxyServerHandler.class.getName()
+            UpstreamHandler.class.getName()
     );
 }
