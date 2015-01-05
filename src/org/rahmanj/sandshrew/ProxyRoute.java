@@ -1,6 +1,8 @@
 
 package org.rahmanj.sandshrew;
 
+import org.rahmanj.sandshrew.policy.ProxyPolicy;
+
 /**
  * Define details of a given proxy route
  *

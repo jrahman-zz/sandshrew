@@ -18,26 +18,38 @@ import java.util.logging.Logger;
 class ProxySpdyOrHttpChooser extends SpdyOrHttpChooser {
 
     /**
-     *
-     * @param httpHandler
-     * @param spdyHandler
+     * Construct a {@link ProxySpdyOrHttpChooser} instance
+     * @param httpHandler A {@link ChannelInboundHandler} for HTTP requests
+     * @param spdyHandler A {@link ChannelInboundHandler} for SPDY requests
      */
     public ProxySpdyOrHttpChooser(ChannelInboundHandler httpHandler, ChannelInboundHandler spdyHandler) {
         super(MAX_CONTENT_LENGTH, MAX_CONTENT_LENGTH);
+
+        if (httpHandler == null || spdyHandler == null) {
+            throw new IllegalArgumentException("Null handler given");
+        }
 
         _httpHandler = httpHandler;
         _spdyHandler = spdyHandler;
     }
 
     /**
-     *
-     * @param httpHandler
-     * @param spdyHandler
+     * Construct a {@link ProxySpdyOrHttpChooser} instance
+     * @param httpHandler A {@link ChannelInboundHandler} for HTTP requests
+     * @param spdyHandler A {@link ChannelInboundHandler} for SPDY requests
      * @param maxSpdyContentLength
      * @param maxHttpContentLength
      */
     public ProxySpdyOrHttpChooser(ChannelInboundHandler httpHandler, ChannelInboundHandler spdyHandler, int maxSpdyContentLength, int maxHttpContentLength) {
         super(maxSpdyContentLength, maxHttpContentLength);
+
+        if (httpHandler == null || spdyHandler == null) {
+            throw new IllegalArgumentException("Null handler given");
+        }
+
+        if (maxHttpContentLength <= 0 || maxSpdyContentLength <= 0) {
+            throw new IllegalArgumentException(("Positive content length required"));
+        }
 
         _httpHandler = httpHandler;
         _spdyHandler = spdyHandler;
@@ -53,7 +65,7 @@ class ProxySpdyOrHttpChooser extends SpdyOrHttpChooser {
         ChannelPipeline p = ctx.pipeline();
         p.addLast("httpContentCompressor", new HttpContentCompressor()); // TODO (JR) make configurable
         p.addLast("httpRequestDecoder", new HttpRequestDecoder());
-        p.addLast("httpRequestHandler", null);
+        p.addLast("httpClientHandler", null);
 
         /**
          * NOTE: We need to further consider the excessive overhead here in the different pipeline stages
@@ -83,7 +95,7 @@ class ProxySpdyOrHttpChooser extends SpdyOrHttpChooser {
         p.addLast("spdySessionHandler", new SpdySessionHandler(version, true));
         p.addLast("spdyHttpObjectDecoder", new SpdyHeaderBlockRawDecoder(version, maxHttpHeaderLength));
         p.addLast("spdyStreamIdHandler", new SpdyHttpResponseStreamIdHandler());
-        // TODO (JR) finish this p.addLast("httpRequestHandler", null);
+        p.addLast("spdyClientHandler", _spdyHandler);
     }
 
     /**
@@ -106,17 +118,18 @@ class ProxySpdyOrHttpChooser extends SpdyOrHttpChooser {
 
     private static final int MAX_CONTENT_LENGTH = 1024 * 100;
 
-    private static final Logger _logger = Logger.getLogger(
-            ProxySpdyOrHttpChooser.class.getName()
-    );
 
     /**
-     * {@link ChannelHandler} for HTTP and HTTPS connections
+     * {@link ChannelInboundHandler} for HTTP and HTTPS connections
      */
     private ChannelInboundHandler _httpHandler;
 
     /**
-     * {@link ChannelHandler} for SPDY connections
+     * {@link ChannelInboundHandler} for SPDY connections
      */
     private ChannelInboundHandler _spdyHandler;
+
+    private static final Logger _logger = Logger.getLogger(
+            ProxySpdyOrHttpChooser.class.getName()
+    );
 }

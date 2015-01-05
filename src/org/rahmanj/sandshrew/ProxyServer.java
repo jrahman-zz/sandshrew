@@ -65,7 +65,6 @@ public class ProxyServer {
         return f.channel().closeFuture();
     }
 
-
     /**
      * Port this given proxy should listen on
      */

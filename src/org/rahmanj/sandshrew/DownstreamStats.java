@@ -29,6 +29,28 @@ public class DownstreamStats {
         _bytesSent.addAndGet(count);
     }
 
+
+    /**
+     * Record the beginning of a new request to the downstream server
+     */
+    public void requestStarted() {
+        _pendingRequests.incrementAndGet();
+    }
+
+    /**
+     * Record the completion of a request to the downstream server
+     * @param successful True if the request successfully completed, false otherwise
+     */
+    public void requestCompleted(boolean successful) {
+        if (successful) {
+            // Yes, technically there is a slight race condition here
+            // but I really don't care because it really doesn't matter
+            // These stats don't have to be 100% accurate, being off by 1 is OK
+            _pendingRequests.decrementAndGet();
+            _completedRequests.incrementAndGet();
+        }
+    }
+
     /**
      *
      * @return

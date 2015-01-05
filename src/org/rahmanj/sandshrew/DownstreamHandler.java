@@ -1,11 +1,14 @@
 
 package org.rahmanj.sandshrew;
 
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpResponse;
 
+import java.net.InetSocketAddress;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -19,13 +22,16 @@ public class DownstreamHandler extends ChannelInboundHandlerAdapter {
 
     /**
      * Construct an instance of the {@link DownstreamHandler}
-     * @param upstreamChannel The {@link ChannelHandlerContext} to send data upstream through
+     * @param upstreamChannel The {@link Channel} to send data upstream through
      * @param downstreamServer The {@link DownstreamServer} we are sending data to
      */
-    public DownstreamHandler(ChannelHandlerContext upstreamChannel, DownstreamServer downstreamServer) {
+    public DownstreamHandler(Channel upstreamChannel, DownstreamServer downstreamServer) {
         _upstreamChannel = upstreamChannel;
         _downstreamServer = downstreamServer;
         _isWritable = true; // Sane default
+
+        InetSocketAddress address = (InetSocketAddress)_upstreamChannel.remoteAddress();
+        _remoteIdentifier = address.getHostString(); // Dodge the DNS call with getHostString()
     }
 
     /**
@@ -75,16 +81,9 @@ public class DownstreamHandler extends ChannelInboundHandlerAdapter {
             _isWritable = !_isWritable;
 
             if (_isWritable) {
-                if (_downstreamServer.decrementThrottle() == 0) {
-                    // TODO (JR) add identification information
-                    _logger.log(Level.FINE, "Renabling reads");
-                    // TODO (JR) Reenable reads from the client
-                }
+                unthrottleClient();
             } else {
-                _downstreamServer.incrementThrottle();
-                // TODO (JR) add identification information
-                _logger.log(Level.FINE, "Disabling reads");
-                // TODO (JR) Disable reads from the client here
+                throttleClient();
             }
         }
 
@@ -105,9 +104,37 @@ public class DownstreamHandler extends ChannelInboundHandlerAdapter {
     }
 
     /**
-     * {@link ChannelHandlerContext} for the upstream channel data should be sent to
+     * Stop throttling the remote client if the DownstreamServer allows it
      */
-    private ChannelHandlerContext _upstreamChannel;
+    protected void unthrottleClient() {
+
+        // TODO (JR) Reconsider the global throttle count because
+        // the problem is that only the last DownstreamClient
+        // to unthrottle the server will see that the server
+        // is no longer experiencing backpressure, so
+        // a notification mechanism would be needed to inform all
+        // DownstreamClients connected to the DownstreamServer
+        // that the server was free again, which would be nasty
+
+        if (_downstreamServer.decrementThrottle() == 0) {
+            _logger.log(Level.FINE, "Renabling reads from upstream: " + _remoteIdentifier);
+            _upstreamChannel.config().setAutoRead(true);
+        }
+    }
+
+    /**
+     * Start throttling the remote client if the DownstreamServer requires it
+     */
+    protected void throttleClient() {
+        _downstreamServer.incrementThrottle();
+        _logger.log(Level.FINE, "Disabling reads from upstream: " + _remoteIdentifier);
+        _upstreamChannel.config().setAutoRead(false);
+    }
+
+    /**
+     * {@link Channel} for the upstream channel data should be sent to
+     */
+    private Channel _upstreamChannel;
 
     /**
      * {@link DownstreamServer} this client channel is proxying to
@@ -118,6 +145,11 @@ public class DownstreamHandler extends ChannelInboundHandlerAdapter {
      * Track if the connection is writable
      */
     private boolean _isWritable;
+
+    /**
+     * Store the address of the remote client
+     */
+    private String _remoteIdentifier;
 
     private static final Logger _logger = Logger.getLogger(
             DownstreamHandler.class.getName()

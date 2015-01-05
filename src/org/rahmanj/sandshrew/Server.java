@@ -3,10 +3,10 @@ package org.rahmanj.sandshrew;
 
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.util.concurrent.*;
-import org.w3c.dom.events.EventException;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
 
 import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Logger;
 
 /**
@@ -62,7 +62,7 @@ public class Server {
 
 
 
-        ProxyServer proxy = new ProxyServer(80, _bossGroup, _workerGroup);
+        ProxyServer proxy = new ProxyServer(80, _bossGroup, _workerGroup, NioServerSocketChannel.class);
 
         _proxyServers.put(80, proxy);
 
@@ -88,10 +88,20 @@ public class Server {
         }
     }
 
+    /**
+     * Globally shared {@link EventLoopGroup} for listening sockets
+     */
     public EventLoopGroup _bossGroup;
+
+    /**
+     * Globally shared {@link EventLoopGroup} for child sockets
+     */
     public EventLoopGroup _workerGroup;
 
-    public HashMap<Integer, ProxyServer> _proxyServers;
+    /**
+     * Store a map of proxies based on their listening port
+     */
+    public Map<Integer, ProxyServer> _proxyServers;
 
     private static final Logger _logger = Logger.getLogger(
             Server.class.getName()

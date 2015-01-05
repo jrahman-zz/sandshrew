@@ -18,7 +18,7 @@ public class HttpPipeliningHandler extends SimpleChannelInboundHandler<HttpReque
     public void channelRead0(ChannelHandlerContext ctx, HttpRequest req) {
 
         // TODO (JR) The request needs to go outbound first, then do this
-        ChannelFuture future = ctx.write(createResponse(req));
+        ChannelFuture future = ctx.write(null);
 
         if (!HttpHeaders.isKeepAlive(req)) {
             future.addListener(ChannelFutureListener.CLOSE);

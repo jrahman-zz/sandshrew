@@ -38,8 +38,8 @@ class ProxyChannelInitializer extends ChannelInitializer<SocketChannel> {
         // Build pipeline between client and proxy
         // Note that ProxySpdyOrHttpChooser actually handles all the details
         // regarding how the pipeline is created
-        // TODO (JR) Get the appropriate handler in here to inject into the constructor
-        p.addLast(new ProxySpdyOrHttpChooser());
+        ProxyServerHandler handler = new ProxyServerHandler(_workerGroup);
+        p.addLast(new ProxySpdyOrHttpChooser(handler, handler));
     }
 
     /**

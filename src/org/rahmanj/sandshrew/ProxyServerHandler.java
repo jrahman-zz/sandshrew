@@ -75,18 +75,25 @@ public class ProxyServerHandler extends ChannelInboundHandlerAdapter {
             HttpHeaders header = req.headers();
 
             // TODO (JR) Determine the route
-            ProxyRoute route;
+            ProxyRoute route = new ProxyRoute(null, null);
 
             // TODO (JR) Update this??
             _downstreamServer = route.getPolicy().selectDownstreamServer();
-            _downstreamClient = new DownstreamClient(ctx, _downstreamServer, _workerGroup);
+            _downstreamClient = new DownstreamClient(ctx.channel(), _downstreamServer, _workerGroup);
 
-            // TODO (JR) Find better way to run this
             try {
+                // Start the downstream client connection
+                // Note that this only starts the client connection process
+                // The client isn't actually connected yet, but will be once
+                // the future completes
                 _downstreamClientFuture = _downstreamClient.run();
             } catch (Exception ex) {
                 // TODO (JR) Blow things up as needed
             }
+
+            // TODO (JR) Wait on the future before doing stuff
+
+
         } else if (isContent(msg)) {
             // TODO (JR) Send stuff to the downstream server
         } else {
@@ -96,7 +103,7 @@ public class ProxyServerHandler extends ChannelInboundHandlerAdapter {
     }
 
     /**
-     * Handle backpressure from the client so we can throttle reads from the {@link DownstreamServer}
+     * Handle backpressure from the remote client so we can throttle reads from the {@link DownstreamServer}
      * @param ctx ChannelHandlerContext for this particular channel
      */
     @Override

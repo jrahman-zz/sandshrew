@@ -14,5 +14,5 @@ public abstract class ProxyPolicy {
 
     }
 
-    public abstract DownstreamServer getNextServer();
+    public abstract DownstreamServer selectDownstreamServer();
 }

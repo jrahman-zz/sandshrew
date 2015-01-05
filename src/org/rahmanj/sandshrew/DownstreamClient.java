@@ -7,7 +7,9 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.spdy.SpdyVersion;
 
 /**
- * Handler for sending the request from the proxy to the downstream client
+ * Handler for sending the request from the proxy to the downstream client. Most of the public methods should
+ * only be called from the ProxyServerHandler which owns this client and the thread in which thathandler
+ * is currently running
  *
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
  */
@@ -19,12 +21,13 @@ public class DownstreamClient {
      * @param server {@link DownstreamServer} we are connecting to
      * @param workerGroup The shared {@link EventLoopGroup} that is backing our async IO
      */
-    public DownstreamClient(ChannelHandlerContext upstreamChannel, DownstreamServer server, EventLoopGroup workerGroup) {
+    public DownstreamClient(Channel upstreamChannel, DownstreamServer server, EventLoopGroup workerGroup) {
         _upstreamChannel = upstreamChannel;
         _downstreamServer = server;
         _workerGroup = workerGroup;
-        _handler = null;
         _spdyVersion = null;
+
+        commonInit();
     }
 
     /**
@@ -34,12 +37,13 @@ public class DownstreamClient {
      * @param workerGroup The shared {@link EventLoopGroup} that is backing our async IO
      * @param spdyVersion The {@link SpdyVersion} to use if SPDY is requested
      */
-    public DownstreamClient(ChannelHandlerContext upstreamChannel, DownstreamServer server, EventLoopGroup workerGroup, SpdyVersion spdyVersion) {
+    public DownstreamClient(Channel upstreamChannel, DownstreamServer server, EventLoopGroup workerGroup, SpdyVersion spdyVersion) {
         _upstreamChannel = upstreamChannel;
         _downstreamServer = server;
         _workerGroup = workerGroup;
-        _handler = null;
         _spdyVersion = spdyVersion;
+
+        commonInit();
     }
 
     /**
@@ -59,27 +63,53 @@ public class DownstreamClient {
 
         // Configure the downstream client to our liking
         // TODO (JR) Are there any other options we would like to tune???
-        Bootstrap b = new Bootstrap();
-        b.group(_workerGroup)
+        _bootstrap = new Bootstrap();
+        _bootstrap.group(_workerGroup)
                 .channel(socketChannelClass)
                 .option(ChannelOption.SO_KEEPALIVE, true);
 
         if (_spdyVersion == null) {
             // No SPDY
-            b.handler(new DownstreamChannelInitializer(_handler));
+            _bootstrap.handler(new DownstreamChannelInitializer(_handler));
         } else {
             // Use SPDY
-            b.handler(new DownstreamChannelInitializer(_handler, _spdyVersion));
+            _bootstrap.handler(new DownstreamChannelInitializer(_handler, _spdyVersion));
         }
 
         // Initiate the downstream connection
-        return b.connect(hostname, port);
+        return _bootstrap.connect(hostname, port);
+    }
+
+    public void throttleReads(boolean read) {
+        // This gets nasty because we have accesses to this from the DownstreamHandler thread
+        // when the channel finally gets initialzed and we need to set it
+        // But we also have access from the ProxyServerHandler thread when it tries to set
+        // the AutoRead value to throttle reads from the downstream server
     }
 
     /**
-     * Channel back to the upstream server making the request
+     * Default initializations
      */
-    private ChannelHandlerContext _upstreamChannel;
+    private void commonInit() {
+        _handler = null;
+        _bootstrap = null;
+        _channel = null;
+    }
+
+    /**
+     * Current auto read status
+     */
+    private boolean _autoRead;
+
+    /**
+     * {@link Channel} for this client
+     */
+    private Channel _channel;
+
+    /**
+     * Channel back to the upstream client making the request
+     */
+    private Channel _upstreamChannel;
 
     /**
      * Information about the {@link DownstreamServer} satisfying the request
@@ -98,7 +128,12 @@ public class DownstreamClient {
     private EventLoopGroup _workerGroup;
 
     /**
-     *
+     * {@link SpdyVersion} to use if SPDY is requested
      */
     private SpdyVersion _spdyVersion;
+
+    /**
+     * Netty {@link Bootstrap} to use for this {@link DownstreamClient}
+     */
+    private Bootstrap _bootstrap;
 }
