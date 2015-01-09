@@ -12,11 +12,12 @@ import io.netty.handler.codec.spdy.SpdyVersion;
 import java.net.InetSocketAddress;
 import java.util.ArrayDeque;
 import java.util.Queue;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Handler for client connections to the downstream server.
+ * Client for connections to a {@link DownstreamServer}.
  *
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
  */
@@ -112,11 +113,11 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
                             } else {
 
                                 // Enqueue current message and send the next message as needed
-                                _messageQueue.add(msg);
+                                _messageQueue.add(new Message(msg, null));
                                 sendNextMessage();
                             }
 
-                        } // else discard next requests
+                        } // TODO (JR) else discard next requests
                     }
                 }
         );
@@ -130,12 +131,22 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
      */
     public void send(final HttpObject msg, final ChannelPromise promise) {
 
-        // TODO (JR) Include the Promise in the _messageQueue
         _channel.eventLoop().execute(
                 new Runnable() {
                     @Override
                     public void run() {
-                        //
+                        if (!_draindown) {
+                            if (_connected && _writable && _messageQueue.size() == 0) {
+
+                                // Immediately send the current message if possible
+                                _channel.write(msg, promise);
+                            } else {
+
+                                // Enqueue current message and send the next message as needed
+                                _messageQueue.add(new Message(msg, promise));
+                                sendNextMessage();
+                            }
+                        }
                     }
                 }
         );
@@ -150,8 +161,9 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
                     @Override
                     public void run() {
                         _throttleCount++;
+                        // TODO (JR) Channel is implicitly non-null here
                         if (_channel != null && _throttleCount > 0) {
-
+                            _channel.config().setAutoRead(false);
                         }
                     }
                 }
@@ -316,29 +328,58 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
      * Transfer the next message from the queue
      */
     protected void sendNextMessage() {
-        HttpObject obj = null;
-        obj = _messageQueue.remove();
-        // TODO (JR) Check _writeable first
+        Message msg = null;
+        HttpObject http = null;
+        ChannelPromise promise = null;
 
-        if (obj != null) {
-            sendMessage(obj);
+        if (_writable) {
+            msg = _messageQueue.remove();
+            sendMessage(http, promise);
+
+            /**
+             * If more messages are queued, send them out ASAP
+             * Note that we cooperatively use the eventLoop() event queue
+             * instead of a loop here so we cooperate with other events that
+             * may need to run on the loop, such as writablity changed events,
+             * or other types of IO event.
+             */
+            if (_messageQueue.size() > 0) {
+                _channel.eventLoop().schedule(
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                sendNextMessage();
+                            }
+                        },
+                        1
+                        TimeUnit.MILLISECONDS
+                );
+            }
         }
+
+        /**
+         * Don't worry about the else part here
+         * Once writability changes, the callback channelWritabilityChanged()
+         * will call sendNextMessage() and this process will kick off normally
+         */
     }
 
     /**
      * Send a message to the DownstreamServer through the pipeline. Here we assume we do not need to synchronize
      *
-     * @param obj
+     * @param msg The {@link HttpObject} to send
+     * @param promise The {@link ChannelPromise} to notify if non-null
      */
-    protected void sendMessage(final HttpObject obj) {
-        if (_writable) {
-            _channel.write(obj);
-
-            // TODO (JR) Handle failure to write because of _writable
-            // Or perhaps, we shouldn't even check for _writable, just assume
-            // That the rest of the class knows what it is doing
-
+    protected void sendMessage(HttpObject msg, ChannelPromise promise) {
+        if (promise != null) {
+            _channel.write(msg, promise);
+        } else {
+            _channel.write(msg);
         }
+
+        // TODO (JR) Handle failure to write because of _writable
+        // Or perhaps, we shouldn't even check for _writable, just assume
+        // That the rest of the class knows what it is doing
     }
 
     /**
@@ -372,6 +413,28 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
 
 
     /**
+     * Wrapper object to store {@link HttpObject}s and {@link ChannelPromise}s bundled together
+     * in the message queue
+     */
+    private class Message {
+        public Message(HttpObject msg, ChannelPromise promise) {
+            _msg = msg;
+            _promise = promise;
+        }
+
+        public HttpObject getMessage() {
+            return _msg;
+        }
+
+        public ChannelPromise getPromise() {
+            return _promise;
+        }
+
+        private HttpObject _msg;
+        private ChannelPromise _promise;
+    }
+
+    /**
      * Default initializations for {@link DownstreamClient}
      */
     private void commonInit() {
@@ -384,7 +447,7 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
         _remoteIdentifier = address.getHostString(); // Dodge the DNS call with getHostString()
 
         _draindown = false;
-        _messageQueue = new ArrayDeque<HttpObject>();
+        _messageQueue = new ArrayDeque<Message>();
         _connected = false;
         _channel = null;
         _remoteAddress = null;
@@ -445,7 +508,7 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
     /**
      * Queue of objects to send
      */
-    private Queue<HttpObject> _messageQueue;
+    private Queue<Message> _messageQueue;
 
     /**
      * Track current connection status
