@@ -8,11 +8,8 @@ import org.rahmanj.sandshrew.*;
  *
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
  */
-public abstract class ProxyPolicy {
+public interface ProxyPolicy {
 
-    public ProxyPolicy() {
 
-    }
-
-    public abstract DownstreamServer selectDownstreamServer();
+    public DownstreamServer next();
 }
