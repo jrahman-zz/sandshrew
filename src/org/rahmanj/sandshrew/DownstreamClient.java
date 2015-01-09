@@ -351,7 +351,7 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
                                 sendNextMessage();
                             }
                         },
-                        1
+                        1,
                         TimeUnit.MILLISECONDS
                 );
             }
