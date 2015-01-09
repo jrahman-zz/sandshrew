@@ -63,7 +63,7 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
      * @return Returns a {@link ChannelFuture} for the connection of the client to the {@link DownstreamServer}
      * @throws Exception
      */
-    public ChannelFuture run() throws Exception {
+    public ChannelFuture run() {
 
         String hostname = _downstreamServer.getHostname();
         int port = _downstreamServer.getPort();
@@ -94,28 +94,32 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
      *
      * @param msg The {@link HttpObject} to send over the {@link ProxyChannel}
      */
-    public void send(HttpObject msg) {
+    public void send(final HttpObject msg) {
 
         if (msg == null) {
             throw new NullPointerException("msg");
         }
 
-        // TODO (JR) Better synchronize this
-        synchronized (_messageQueue) {
-            if (!_draindown) {
-                if (_connected && _writable && _messageQueue.size() == 0) {
+        _channel.eventLoop().execute(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        if (!_draindown) {
+                            if (_connected && _writable && _messageQueue.size() == 0) {
 
-                    // Immediately send the current message if possible
-                    _channel.write(msg);
-                } else {
+                                // Immediately send the current message if possible
+                                _channel.write(msg);
+                            } else {
 
-                    // Enqueue current message and send the next message as needed
-                    _messageQueue.add(msg);
-                    sendNextMessage();
+                                // Enqueue current message and send the next message as needed
+                                _messageQueue.add(msg);
+                                sendNextMessage();
+                            }
+
+                        } // else discard next requests
+                    }
                 }
-
-            } // else discard next requests
-        }
+        );
     }
 
     /**
@@ -134,14 +138,38 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
      * Throttles automatic reading from this channel
      */
     public void throttle() {
+        _channel.eventLoop().execute(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        _throttleCount++;
+                        if (_channel != null && _throttleCount > 0) {
 
+                        }
+                    }
+                }
+        );
     }
 
     /**
      * Unthrottles automatic reading from this channel
      */
     public void unthrottle() {
+        _channel.eventLoop().execute(
+            new Runnable() {
+                @Override
+                public void run() {
+                    if (_throttleCount > 0) {
+                        _throttleCount--;
+                    }
 
+                    if(_channel != null && _throttleCount==0)
+                    {
+                        _channel.config().setAutoRead(true);
+                    }
+                }
+            }
+        );
     }
 
     /**
@@ -167,11 +195,7 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
      * @return Returns an {@link InetSocketAddress} is the connection is established, null otherwise
      */
     public InetSocketAddress getRemoteAddress() {
-        if (_channel != null && _connected) {
-            return (InetSocketAddress) _channel.remoteAddress();
-        } else {
-            return null;
-        }
+        return _remoteAddress;
     }
 
     /**
@@ -192,8 +216,9 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
     public void channelActive(final ChannelHandlerContext ctx) {
 
         _connected = true;
-
         _channel = ctx.channel();
+
+        _remoteAddress = (InetSocketAddress)_channel.remoteAddress();
 
         // Flush pending message
         sendNextMessage();
@@ -226,18 +251,21 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
 
-        // TODO (JR) Forward onward to the other channel
+        if (msg instanceof HttpObject) {
+            _upstreamChannel.send((HttpObject) msg);
+        } else {
+            _logger.log(Level.FINE, "Read non-HttpObject");
+        }
     }
 
     /**
-     * Record changes in channel writeability from the proxy to the server so that we can properly handle backpressure
+     * Record changes in channel writability from the proxy to the server so that we can properly handle backpressure
      * from the server to the client.
      *
      * @param ctx {@link ChannelHandlerContext} for the current {@link Channel} and pipeline
      */
     @Override
     public void channelWritabilityChanged(ChannelHandlerContext ctx) {
-
         // Check for toggle from previous state
         if (_writable != ctx.channel().isWritable()) {
             _writable = !_writable;
@@ -282,10 +310,7 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
      */
     protected void sendNextMessage() {
         HttpObject obj = null;
-        synchronized (_messageQueue) {
-            obj = _messageQueue.remove();
-        }
-
+        obj = _messageQueue.remove();
         // TODO (JR) Check _writeable first
 
         if (obj != null) {
@@ -294,18 +319,19 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
     }
 
     /**
-     * Send a message to the DownstreamServer through the pipeline
+     * Send a message to the DownstreamServer through the pipeline. Here we assume we do not need to synchronize
      *
      * @param obj
      */
-    protected void sendMessage(HttpObject obj) {
+    protected void sendMessage(final HttpObject obj) {
         if (_writable) {
             _channel.write(obj);
-        }
 
-        // TODO (JR) Handle failure to write because of _writable
-        // Or perhaps, we shouldn't even check for _writeable, just assume
-        // That the rest of the class knows what it is doing
+            // TODO (JR) Handle failure to write because of _writable
+            // Or perhaps, we shouldn't even check for _writable, just assume
+            // That the rest of the class knows what it is doing
+
+        }
     }
 
     /**
@@ -354,6 +380,7 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
         _messageQueue = new ArrayDeque<HttpObject>();
         _connected = false;
         _channel = null;
+        _remoteAddress = null;
     }
 
     /**
@@ -381,6 +408,11 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
      * {@link Channel} between the proxy and the downstream server
      */
     private Channel _channel;
+
+    /**
+     * {@link InetSocketAddress} for the remote {@link DownstreamServer}
+     */
+    private InetSocketAddress _remoteAddress;
 
     /**
      * {@link DownstreamServer} this client channel is proxying to

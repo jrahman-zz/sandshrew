@@ -28,10 +28,14 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
         _workerGroup = workerGroup;
         _writable = true; // Sane default
         _remoteIdentifier = null;
+
+        _channel = null;
+        _remoteAddress = null;
+
         _downstreamServer = null;
         _downstreamClient = null;
         _downstreamClientFuture = null;
-        _channel = null;
+
 
         _throttled = false;
     }
@@ -43,7 +47,7 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
      *
      * @param msg The {@link HttpObject} to send over the {@link ProxyChannel}
      */
-    public void send(HttpObject msg) {
+    public void send(final HttpObject msg) {
 
         /**
          * _channel should never be null or unconnected because the DownstreamHandler should not
@@ -52,7 +56,14 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
          *
          */
 
-        _channel.write(msg);
+        _channel.eventLoop().execute(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        _channel.write(msg);
+                    }
+                }
+        );
     }
 
     /**
@@ -61,22 +72,53 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
      * @param msg The {@link HttpObject} to send over the {@link ProxyChannel}
      * @param promise A {@ChannelPromise} to be triggered when the {@link HttpObject} is sent
      */
-    public void send(HttpObject msg, ChannelPromise promise) {
-
-        _channel.write(msg, promise);
+    public void send(final HttpObject msg, final ChannelPromise promise) {
+        _channel.eventLoop().execute(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        _channel.write(msg, promise);
+                    }
+                }
+        );
     }
 
     /**
      * Throttle AutoRead from the {@link Channel}
      */
     public void throttle() {
+        _channel.eventLoop().execute(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        _throttled = true;
 
-        // TODO (JR) Synchronoize this since will be called from multiple threads
-        _throttled = true;
+                        if (_channel != null) {
+                            _channel.config().setAutoRead(false);
+                        }
+                    }
+                }
+        );
+    }
 
-        if (_channel != null) {
-            _channel.config().setAutoRead(false);
-        }
+
+
+    /**
+     * Unthrottle AutoRead from the {@link Channel}
+     */
+    public void unthrottle() {
+        _channel.eventLoop().execute(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        _throttled = false;
+
+                        if (_channel != null) {
+                            _channel.config().setAutoRead(true);
+                        }
+                    }
+                }
+        )
     }
 
     /**
@@ -85,17 +127,6 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
      */
     public boolean isDraining() {
         return _draining;
-    }
-
-    /**
-     * Unthrottle AutoRead from the {@link Channel}
-     */
-    public void unthrottle() {
-        _throttled = false;
-
-        if (_channel != null) {
-            _channel.config().setAutoRead(true);
-        }
     }
 
     /**
@@ -112,11 +143,7 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
      * @return Returns a {@link java.net.InetSocketAddress} if the connection has been established, null otherwise
      */
     public InetSocketAddress getRemoteAddress() {
-        if (_channel != null) {
-            return (InetSocketAddress)_channel.remoteAddress();
-        } else {
-            return null;
-        }
+        return _remoteAddress;
     }
 
     /**
@@ -132,7 +159,16 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
      * Perform a graceful asynchronous shutdown of this client
      */
     public void shutdown() {
-        // TODO (JR) Implement this
+
+        _channel.eventLoop().execute(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        _draining = true;
+                        // TODO (JR) Implement this
+                    }
+                }
+        );
     }
 
     /**
@@ -142,13 +178,11 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
     @Override
     public void channelActive(final ChannelHandlerContext ctx) {
 
-        // TODO (JR) Synchronize this
-
         // TODO (JR) Any setup operations
-        InetSocketAddress address = (InetSocketAddress)ctx.channel().remoteAddress();
+        _remoteAddress = (InetSocketAddress)ctx.channel().remoteAddress();
 
         // Use getHostString() to prevent a DNS lookup from happening
-        _remoteIdentifier = address.getHostString();
+        _remoteIdentifier = _remoteAddress.getHostString();
 
         _logger.log(Level.FINE, "Connection opened with downstream: " + _remoteIdentifier);
 
@@ -288,9 +322,19 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
     }
 
     /**
-     * Shared {@link EventLoopGroup} used for all async background IO
+     * Shared {@link EventLoopGroup} used for all async background IO operations
      */
     private EventLoopGroup _workerGroup;
+
+    /**
+     * {@link Channel} this handler is managing
+     */
+    private Channel _channel;
+
+    /**
+     * {@link InetSocketAddress} for the remote upstream client
+     */
+    private InetSocketAddress _remoteAddress;
 
     /**
      * Track last writable state
@@ -327,10 +371,7 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
      */
     private boolean _throttled;
 
-    /**
-     * {@link Channel} this handler is managing
-     */
-    private Channel _channel;
+
 
     private static final Logger _logger = Logger.getLogger(
             UpstreamHandler.class.getName()
