@@ -128,10 +128,17 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
      * @param msg The {@link HttpObject} to send over the {@link ProxyChannel}
      * @param promise A {@ChannelPromise} to be triggered when the {@link HttpObject} is sent
      */
-    public void send(HttpObject msg, ChannelPromise promise) {
+    public void send(final HttpObject msg, final ChannelPromise promise) {
 
         // TODO (JR) Include the Promise in the _messageQueue
-
+        _channel.eventLoop().execute(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        //
+                    }
+                }
+        );
     }
 
     /**

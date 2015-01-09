@@ -118,7 +118,7 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
                         }
                     }
                 }
-        )
+        );
     }
 
     /**
