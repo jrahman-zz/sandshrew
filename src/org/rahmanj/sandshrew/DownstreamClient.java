@@ -4,26 +4,33 @@ package org.rahmanj.sandshrew;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpObject;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.spdy.SpdyVersion;
 
+import java.net.InetSocketAddress;
+import java.util.ArrayDeque;
+import java.util.Queue;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 /**
- * Client for sending the request from the proxy to the downstream client. Most of the public methods should
- * only be called from the UpstreamHandler which owns this client and the thread in which that handler
- * is currently running
+ * Handler for client connections to the downstream server.
  *
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
  */
-public class DownstreamClient {
+public class DownstreamClient extends ChannelInboundHandlerAdapter implements ProxyChannel {
+
 
     /**
      * Construct an {@link DownstreamClient} instance
      *
-     * @param upstreamChannel {@link UpstreamHandler} for the upstream channel
-     * @param server {@link DownstreamServer} we are connecting to
-     * @param workerGroup The shared {@link EventLoopGroup} that is backing our async IO
+     * @param upstreamChannel The {@link ProxyChannel} for the upstream channel
+     * @param server The {@link DownstreamServer} we are connecting to
+     * @param workerGroup The shared {@link EventLoopGroup} that is backing our async IO operations
      */
-    public DownstreamClient(UpstreamHandler upstreamChannel, DownstreamServer server, EventLoopGroup workerGroup) {
+    public DownstreamClient(ProxyChannel upstreamChannel, DownstreamServer server, EventLoopGroup workerGroup) {
         _upstreamChannel = upstreamChannel;
         _downstreamServer = server;
         _workerGroup = workerGroup;
@@ -34,12 +41,13 @@ public class DownstreamClient {
 
     /**
      * Construct an {@link DownstreamClient} instance
-     * @param upstreamChannel {@link UpstreamHandler} for the upstream channel
-     * @param server {@link DownstreamServer} we are connecting to
-     * @param workerGroup The shared {@link EventLoopGroup} that is backing our async IO
+     *
+     * @param upstreamChannel The {@link ProxyChannel} for the upstream channel
+     * @param server The {@link DownstreamServer} we are connecting to
+     * @param workerGroup The shared {@link EventLoopGroup} that is backing our async IO operations
      * @param spdyVersion The {@link SpdyVersion} to use if SPDY is requested
      */
-    public DownstreamClient(UpstreamHandler upstreamChannel, DownstreamServer server, EventLoopGroup workerGroup, SpdyVersion spdyVersion) {
+    public DownstreamClient(ProxyChannel upstreamChannel, DownstreamServer server, EventLoopGroup workerGroup, SpdyVersion spdyVersion) {
         _upstreamChannel = upstreamChannel;
         _downstreamServer = server;
         _workerGroup = workerGroup;
@@ -48,19 +56,17 @@ public class DownstreamClient {
         commonInit();
     }
 
+
     /**
      * Starts the {@link DownstreamClient} asynchronously
      *
-     * @return Returns a {@link ChannelFuture} for the connection of the client and {@link DownstreamServer}
+     * @return Returns a {@link ChannelFuture} for the connection of the client to the {@link DownstreamServer}
      * @throws Exception
      */
     public ChannelFuture run() throws Exception {
 
         String hostname = _downstreamServer.getHostname();
         int port = _downstreamServer.getPort();
-
-        // TODO (JR) At some point update this with config information and a proper interface to the upstream channel
-        _handler = new DownstreamHandler(_upstreamChannel, _downstreamServer);
 
         Class socketChannelClass = NioSocketChannel.class;
 
@@ -73,10 +79,10 @@ public class DownstreamClient {
 
         if (_spdyVersion == null) {
             // No SPDY
-            _bootstrap.handler(new DownstreamChannelInitializer(_handler));
+            _bootstrap.handler(new DownstreamChannelInitializer(this));
         } else {
             // Use SPDY
-            _bootstrap.handler(new DownstreamChannelInitializer(_handler, _spdyVersion));
+            _bootstrap.handler(new DownstreamChannelInitializer(this, _spdyVersion));
         }
 
         // Initiate the downstream connection
@@ -84,66 +90,271 @@ public class DownstreamClient {
     }
 
     /**
-     * Asynchronously shutdown the client. Allows pending messages to be sent and any pending responses to
-     * be sent to the upstream client
+     * Send a given {@link HttpObject} over the {@link ProxyChannel}. This method is asynchronous.
+     *
+     * @param msg The {@link HttpObject} to send over the {@link ProxyChannel}
+     */
+    public void send(HttpObject msg) {
+
+        if (msg == null) {
+            throw new NullPointerException("msg");
+        }
+
+        // TODO (JR) Better synchronize this
+        synchronized (_messageQueue) {
+            if (!_draindown) {
+                if (_connected && _writable && _messageQueue.size() == 0) {
+
+                    // Immediately send the current message if possible
+                    _channel.write(msg);
+                } else {
+
+                    // Enqueue current message and send the next message as needed
+                    _messageQueue.add(msg);
+                    sendNextMessage();
+                }
+
+            } // else discard next requests
+        }
+    }
+
+    /**
+     * Send a given {@link HttpObject} over the {@link ProxyChannel}. This method is asynchronous.
+     *
+     * @param msg The {@link HttpObject} to send over the {@link ProxyChannel}
+     * @param promise A {@ChannelPromise} to be triggered when the {@link HttpObject} is sent
+     */
+    public void send(HttpObject msg, ChannelPromise promise) {
+
+        // TODO (JR) Include the Promise in the _messageQueue
+
+    }
+
+    /**
+     * Throttles automatic reading from this channel
+     */
+    public void throttle() {
+
+    }
+
+    /**
+     * Unthrottles automatic reading from this channel
+     */
+    public void unthrottle() {
+
+    }
+
+    /**
+     * Checks if the connection is currently writable
+     *
+     * @return Returns true if the connection is writable, false otherwise
+     */
+    public boolean isWritable() {
+        return _writable;
+    }
+
+    /**
+     * Checks if the {@link DownstreamClient} is draining
      * @return
      */
-    public ChannelFuture shutdown() {
-        _handler.shutdown();
+    public boolean isDraining() {
+        return _draindown;
+    }
+
+    /**
+     * Get the {@link InetSocketAddress} of the downstream server connected to the {@link Channel} controlled by this {@link DownstreamClient}
+     *
+     * @return Returns an {@link InetSocketAddress} is the connection is established, null otherwise
+     */
+    public InetSocketAddress getRemoteAddress() {
+        if (_channel != null && _connected) {
+            return (InetSocketAddress) _channel.remoteAddress();
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     *
+     */
+    public void shutdown() {
+
+        // TODO (JR) Complete this
+       _draindown = true;
+    }
+
+    /**
+     * Start sending data onward since the connection has been established
+     *
+     * @param ctx The {@link ChannelHandlerContext} for this channel
+     */
+    @Override
+    public void channelActive(final ChannelHandlerContext ctx) {
+
+        _connected = true;
+
+        _channel = ctx.channel();
+
+        // Flush pending message
+        sendNextMessage();
+
+        // Forward if needed
+        ctx.fireChannelActive();
+    }
+
+    /**
+     * Perform appropriate teardown
+     *
+     * @param ctx The {@link ChannelHandlerContext} for this channel
+     */
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) {
+
+        _connected = false;
+
+        // Forward if needed
+        ctx.fireChannelInactive();
     }
 
 
-    public void send(HttpObject msg) {
-        /** TODO (JR) Improve this by better tracking the state of the client
-         * even in the face of concurrent operations and potential race conditions
+    /**
+     * Handle read events from the downstream server
+     *
+     * @param ctx The {@link ChannelHandlerContext} for this channel
+     * @param msg A {@link HttpResponse} or {@link HttpContent} from the {@link DownstreamServer}
+     */
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) {
+
+        // TODO (JR) Forward onward to the other channel
+    }
+
+    /**
+     * Record changes in channel writeability from the proxy to the server so that we can properly handle backpressure
+     * from the server to the client.
+     *
+     * @param ctx {@link ChannelHandlerContext} for the current {@link Channel} and pipeline
+     */
+    @Override
+    public void channelWritabilityChanged(ChannelHandlerContext ctx) {
+
+        // Check for toggle from previous state
+        if (_writable != ctx.channel().isWritable()) {
+            _writable = !_writable;
+
+            if (_writable) {
+                unthrottleClient();
+            } else {
+                throttleClient();
+            }
+        }
+
+        // Send queued messages
+        if (_writable) {
+            sendNextMessage();
+        }
+
+        // Forward onward
+        ctx.fireChannelWritabilityChanged();
+    }
+
+    /**
+     *
+     * @param ctx
+     * @param cause
+     */
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+
+        // TODO (JR) Convert this to logging framework
+        // TODO (JR) Have this do something to robustly respond
+        cause.printStackTrace();
+
+        // Have a better closure mechanism
+        ctx.close();
+
+        // TODO (JR) Is this safe?
+        // _upstreamChannelHandler.close();
+    }
+
+    /**
+     * Transfer the next message from the queue
+     */
+    protected void sendNextMessage() {
+        HttpObject obj = null;
+        synchronized (_messageQueue) {
+            obj = _messageQueue.remove();
+        }
+
+        // TODO (JR) Check _writeable first
+
+        if (obj != null) {
+            sendMessage(obj);
+        }
+    }
+
+    /**
+     * Send a message to the DownstreamServer through the pipeline
+     *
+     * @param obj
+     */
+    protected void sendMessage(HttpObject obj) {
+        if (_writable) {
+            _channel.write(obj);
+        }
+
+        // TODO (JR) Handle failure to write because of _writable
+        // Or perhaps, we shouldn't even check for _writeable, just assume
+        // That the rest of the class knows what it is doing
+    }
+
+    /**
+     * Stop throttling the remote client if the DownstreamServer allows it
+     */
+    protected void unthrottleClient() {
+
+        /** TODO (JR) Reconsider the global throttle count because
+         * the problem is that only the last DownstreamClient
+         * to unthrottle the server will see that the server
+         * is no longer experiencing backpressure, so
+         * a notification mechanism would be needed to inform all
+         * DownstreamClients connected to the DownstreamServer
+         * that the server was free again, which would be nasty
          */
 
-        // Forward onto the handler
-        _handler.send(msg);
-    }
-
-    public void throttleReads(boolean read) {
-        // This gets nasty because we have accesses to this from the DownstreamHandler thread
-        // when the channel finally gets initialzed and we need to set it
-        // But we also have access from the UpstreamHandler thread when it tries to set
-        // the AutoRead value to throttle reads from the downstream server
-
-        // TODO (JR) Implement this
+        if (_downstreamServer.decrementThrottle() == 0) {
+            _logger.log(Level.FINE, "Renabling reads from upstream: " + _remoteIdentifier);
+            _upstreamChannel.unthrottle();
+        }
     }
 
     /**
-     * Default initializations
+     * Start throttling the remote client if the DownstreamServer requires it
+     */
+    protected void throttleClient() {
+        _downstreamServer.incrementThrottle();
+        _logger.log(Level.FINE, "Disabling reads from upstream: " + _remoteIdentifier);
+        _upstreamChannel.throttle();
+    }
+
+
+    /**
+     * Default initializations for {@link DownstreamClient}
      */
     private void commonInit() {
-        _handler = null;
         _bootstrap = null;
         _channel = null;
+
+        _writable = true; // Sane default
+
+        InetSocketAddress address = _upstreamChannel.getRemoteAddress();
+        _remoteIdentifier = address.getHostString(); // Dodge the DNS call with getHostString()
+
+        _draindown = false;
+        _messageQueue = new ArrayDeque<HttpObject>();
+        _connected = false;
+        _channel = null;
     }
-
-    /**
-     * Current auto read status
-     */
-    private boolean _autoRead;
-
-    /**
-     * {@link Channel} for this client
-     */
-    private Channel _channel;
-
-    /**
-     * {@link UpstreamHandler} for the upstream channel
-     */
-    private UpstreamHandler _upstreamChannel;
-
-    /**
-     * Information about the {@link DownstreamServer} satisfying the request
-     */
-    private DownstreamServer _downstreamServer;
-
-    /**
-     * {@link DownstreamHandler} for this {@link Channel}
-     */
-    private DownstreamHandler _handler;
 
     /**
      * Set of worker threads to perform async IO for use, shared with the {@link ProxyServer}
@@ -152,7 +363,7 @@ public class DownstreamClient {
     private EventLoopGroup _workerGroup;
 
     /**
-     * {@link SpdyVersion} to use if SPDY is requested
+     * {@link io.netty.handler.codec.spdy.SpdyVersion} to use if SPDY is requested
      */
     private SpdyVersion _spdyVersion;
 
@@ -160,4 +371,54 @@ public class DownstreamClient {
      * Netty {@link Bootstrap} to use for this {@link DownstreamClient}
      */
     private Bootstrap _bootstrap;
+
+    /**
+     * {@link ProxyChannel} for the upstream channel data should be sent to
+     */
+    private ProxyChannel _upstreamChannel;
+
+    /**
+     * {@link Channel} between the proxy and the downstream server
+     */
+    private Channel _channel;
+
+    /**
+     * {@link DownstreamServer} this client channel is proxying to
+     */
+    private DownstreamServer _downstreamServer;
+
+    /**
+     * Track if the connection is writable
+     */
+    private boolean _writable;
+
+    /**
+     * Store the address of the remote client
+     */
+    private String _remoteIdentifier;
+
+    /**
+     * Current draindown state, set to true when client should stop accepting new data, and should drain
+     * it's current queue
+     */
+    private boolean _draindown;
+
+    /**
+     * Queue of objects to send
+     */
+    private Queue<HttpObject> _messageQueue;
+
+    /**
+     * Track current connection status
+     */
+    private boolean _connected;
+
+    /**
+     * Track the throttle requests on this given downstream connection.
+     */
+    private int _throttleCount;
+
+    private static final Logger _logger = Logger.getLogger(
+            DownstreamClient.class.getName()
+    );
 }

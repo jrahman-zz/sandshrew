@@ -10,6 +10,7 @@ import java.net.InetSocketAddress;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import io.netty.handler.codec.http.HttpObject;
 import org.rahmanj.sandshrew.routes.ProxyRoute;
 
 /**
@@ -17,7 +18,7 @@ import org.rahmanj.sandshrew.routes.ProxyRoute;
  *
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
  */
-public class UpstreamHandler extends ChannelInboundHandlerAdapter {
+public class UpstreamHandler extends ChannelInboundHandlerAdapter implements ProxyChannel {
 
     /**
      * Construct an instance of the UpstreamHandler using the given EventLoopGroup
@@ -35,18 +36,103 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter {
         _throttled = false;
     }
 
+
+
     /**
+     * Send a given {@link HttpObject} over the {@link ProxyChannel}. This method is asynchronous.
      *
-     * @param throttle
+     * @param msg The {@link HttpObject} to send over the {@link ProxyChannel}
      */
-    public void throttleClientReads(boolean throttle) {
+    public void send(HttpObject msg) {
+
+        /**
+         * _channel should never be null or unconnected because the DownstreamHandler should not
+         * even begin to start calling this method until after we have began reading from the upstream client
+         * By then _channel is non-null and connected as expected
+         *
+         */
+
+        _channel.write(msg);
+    }
+
+    /**
+     * Send a given {@link HttpObject} over the {@link ProxyChannel}. This method is asynchronous
+     *
+     * @param msg The {@link HttpObject} to send over the {@link ProxyChannel}
+     * @param promise A {@ChannelPromise} to be triggered when the {@link HttpObject} is sent
+     */
+    public void send(HttpObject msg, ChannelPromise promise) {
+
+        _channel.write(msg, promise);
+    }
+
+    /**
+     * Throttle AutoRead from the {@link Channel}
+     */
+    public void throttle() {
 
         // TODO (JR) Synchronoize this since will be called from multiple threads
-        _throttled = throttle;
+        _throttled = true;
 
         if (_channel != null) {
-            _channel.config().setAutoRead(!_throttled);
+            _channel.config().setAutoRead(false);
         }
+    }
+
+    /**
+     *
+     * @return
+     */
+    public boolean isDraining() {
+        return _draining;
+    }
+
+    /**
+     * Unthrottle AutoRead from the {@link Channel}
+     */
+    public void unthrottle() {
+        _throttled = false;
+
+        if (_channel != null) {
+            _channel.config().setAutoRead(true);
+        }
+    }
+
+    /**
+     * Checks if the {@link Channel} behind this {@link UpstreamHandler} is writable or not
+     * @return Returns true if the {@link Channel} is writable, false otherwise
+     */
+    public boolean isWritable() {
+        return _writable;
+    }
+
+    /**
+     * Get the remote address of the remote upstream client
+     *
+     * @return Returns a {@link java.net.InetSocketAddress} if the connection has been established, null otherwise
+     */
+    public InetSocketAddress getRemoteAddress() {
+        if (_channel != null) {
+            return (InetSocketAddress)_channel.remoteAddress();
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * Asynchronously start the given {@link ProxyChannel}
+     */
+    public ChannelFuture run() {
+
+        // NOOP
+        return null;
+    }
+
+    /**
+     * Perform a graceful asynchronous shutdown of this client
+     */
+    public void shutdown() {
+        // TODO (JR) Implement this
     }
 
     /**
@@ -129,6 +215,7 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter {
 
     /**
      * Handle backpressure from the remote client so we can throttle reads from the {@link DownstreamServer}
+     *
      * @param ctx ChannelHandlerContext for this particular channel
      */
     @Override
@@ -182,7 +269,8 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter {
 
     /**
      * Check if a given input is a {@link HttpMessage} object
-     * @param msg {@link Object} to check
+     *
+     * @param msg An {@link Object} to check
      * @return Returns true if the object is truly a {@link HttpMessage} object
      */
     protected boolean isHeader(Object msg) {
@@ -191,6 +279,7 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter {
 
     /**
      * Check if a given input is a {@link HttpContent} object
+     *
      * @param msg {@link Object} to check
      * @return Returns true if the object is truly a {@link HttpContent} object
      */
@@ -209,6 +298,11 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter {
     private boolean _writable;
 
     /**
+     * Track if we are draining down
+     */
+    private boolean _draining;
+
+    /**
      * Information about the remote agent
      */
     private String _remoteIdentifier;
@@ -219,9 +313,9 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter {
     private DownstreamServer _downstreamServer;
 
     /**
-     * {@link DownstreamClient} to transmit data to the {@link DownstreamServer}
+     * {@link ProxyChannel} to transmit data to the {@link DownstreamServer}
      */
-    private DownstreamClient _downstreamClient;
+    private ProxyChannel _downstreamClient;
 
     /**
      * {@link ChannelFuture} for the Close event on the downstream client
