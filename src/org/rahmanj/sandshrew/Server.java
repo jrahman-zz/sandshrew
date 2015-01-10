@@ -6,7 +6,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.rahmanj.sandshrew.config.FileChangedErrorHandler;
 import org.rahmanj.sandshrew.config.FileChangedHandler;
-import org.rahmanj.sandshrew.config.FileReloader;
+import org.rahmanj.sandshrew.config.FileWatcher;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -75,9 +75,9 @@ public class Server implements FileChangedErrorHandler, FileChangedHandler {
         _workerGroup = new NioEventLoopGroup(12);
 
         /**
-         * (JR) Sample of using {@link FileReloader} with {@link nio.NioEventLoopGroup}
+         * (JR) Sample of using {@link org.rahmanj.sandshrew.config.FileWatcher} with {@link nio.NioEventLoopGroup}
          */
-        FileReloader reloader = new FileReloader(Paths.get("test"), this, this, _workerGroup, 3);
+        FileWatcher reloader = new FileWatcher(Paths.get("test"), this, this, _workerGroup, 3);
 
         ProxyServer proxy = new ProxyServer(80, _bossGroup, _workerGroup, NioServerSocketChannel.class);
 

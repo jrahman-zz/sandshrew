@@ -3,10 +3,8 @@ package org.rahmanj.sandshrew.config;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.FileStore;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFileAttributes;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -16,19 +14,19 @@ import java.util.concurrent.TimeUnit;
  *
  * Created by jprahman on 1/9/15.
  */
-public class FileReloader implements Runnable {
+public class FileWatcher implements Runnable {
 
 
     /**
-     * Construct a new {@link FileReloader} instance
+     * Construct a new {@link FileWatcher} instance
      *
      * @param file {@link Path} to the file to watch
      * @param callback The {@link FileChangedHandler} to invoke when the file changes
      * @param errorCallback The {@link FileChangedErrorHandler} to invoke if an error occurs
-     * @param executor The {@link ScheduledExecutorService} to run the {@link FileReloader} on in the background
+     * @param executor The {@link ScheduledExecutorService} to run the {@link FileWatcher} on in the background
      * @param period The delay (in seconds) between successive checks on the file
      */
-    public FileReloader(Path file, FileChangedHandler callback, FileChangedErrorHandler errorCallback, ScheduledExecutorService executor, long period) {
+    public FileWatcher(Path file, FileChangedHandler callback, FileChangedErrorHandler errorCallback, ScheduledExecutorService executor, long period) {
         if (executor == null) {
             throw new NullPointerException("Null executor");
         }
@@ -55,14 +53,14 @@ public class FileReloader implements Runnable {
     }
 
     /**
-     * Construct a new {@link FileReloader} instance
+     * Construct a new {@link FileWatcher} instance
      *
      * @param file {@link Path} to the file to watch
      * @param callback The {@link FileChangedHandler} to invoke when the file changes
      * @param errorCallback The {@link FileChangedErrorHandler} to invoke if an error occurs
-     * @param executor The {@link ScheduledExecutorService} to run the {@link FileReloader} on in the background
+     * @param executor The {@link ScheduledExecutorService} to run the {@link FileWatcher} on in the background
      */
-    public FileReloader(Path file, FileChangedHandler callback, FileChangedErrorHandler errorCallback, ScheduledExecutorService executor) {
+    public FileWatcher(Path file, FileChangedHandler callback, FileChangedErrorHandler errorCallback, ScheduledExecutorService executor) {
         this(file, callback, errorCallback, executor, 2);
     }
 
@@ -85,10 +83,12 @@ public class FileReloader implements Runnable {
     }
 
     /**
-     * Cancel further execution of the {@link FileReloader}
+     * Cancel further execution of the {@link FileWatcher}
+     *
+     * @return True if the {@link FileWatcher} was successfully cancelled, false otherwise
      */
-    public void cancel() {
-        _future.cancel(false);
+    public boolean cancel() {
+        return _future.cancel(false);
     }
 
 
