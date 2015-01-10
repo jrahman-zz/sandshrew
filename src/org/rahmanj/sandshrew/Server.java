@@ -4,7 +4,13 @@ package org.rahmanj.sandshrew;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import org.rahmanj.sandshrew.config.FileChangedErrorHandler;
+import org.rahmanj.sandshrew.config.FileChangedHandler;
+import org.rahmanj.sandshrew.config.FileReloader;
 
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -14,7 +20,7 @@ import java.util.logging.Logger;
  *
  * @author Jason P. Rahman
  */
-public class Server {
+public class Server implements FileChangedErrorHandler, FileChangedHandler {
 
     public Server() {
 
@@ -43,6 +49,14 @@ public class Server {
         }
     }
 
+    public void fileChanged(Path filePath) {
+        // TODO (JR) Stub later
+    }
+
+    public void fileAccessError(IOException exception) {
+        // TODO (JR) Stub later
+    }
+
     /**
      * Initializes the Server for use
      */
@@ -60,7 +74,10 @@ public class Server {
         _bossGroup = new NioEventLoopGroup(4);
         _workerGroup = new NioEventLoopGroup(12);
 
-
+        /**
+         * (JR) Sample of using {@link FileReloader} with {@link nio.NioEventLoopGroup}
+         */
+        FileReloader reloader = new FileReloader(Paths.get("test"), this, this, _workerGroup, 3);
 
         ProxyServer proxy = new ProxyServer(80, _bossGroup, _workerGroup, NioServerSocketChannel.class);
 
