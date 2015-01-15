@@ -1,9 +1,6 @@
 
 package org.rahmanj.sandshrew.policy;
 
-import com.sun.jmx.remote.internal.ArrayQueue;
-import org.rahmanj.sandshrew.DownstreamServer;
-
 
 /**
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
@@ -17,8 +14,8 @@ public class WeightedRoundRobinProxyPolicy extends RoundRobinProxyPolicy {
      *
      * @return
      */
-    public DownstreamServer next() {
-        return super.next();
+    public DownstreamServer next(RequestContext ctx) {
+        return super.next(ctx);
     }
 
     /**

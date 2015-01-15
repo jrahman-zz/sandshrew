@@ -11,6 +11,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import io.netty.handler.codec.http.HttpObject;
+import org.rahmanj.sandshrew.policy.DownstreamServer;
 import org.rahmanj.sandshrew.routes.ProxyRoute;
 
 /**
@@ -248,7 +249,7 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
     }
 
     /**
-     * Handle backpressure from the remote client so we can throttle reads from the {@link DownstreamServer}
+     * Handle backpressure from the remote client so we can throttle reads from the {@link org.rahmanj.sandshrew.policy.DownstreamServer}
      *
      * @param ctx ChannelHandlerContext for this particular channel
      */
@@ -352,7 +353,7 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
     private String _remoteIdentifier;
 
     /**
-     * {@link DownstreamServer} we are proxying for
+     * {@link org.rahmanj.sandshrew.policy.DownstreamServer} we are proxying for
      */
     private DownstreamServer _downstreamServer;
 

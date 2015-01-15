@@ -1,8 +1,6 @@
 
 package org.rahmanj.sandshrew.policy;
 
-import org.rahmanj.sandshrew.*;
-
 /**
  * Base class for general proxy policies
  *
@@ -11,5 +9,5 @@ import org.rahmanj.sandshrew.*;
 public interface ProxyPolicy {
 
 
-    public DownstreamServer next();
+    public DownstreamServer next(RequestContext ctx);
 }

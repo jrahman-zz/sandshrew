@@ -8,6 +8,7 @@ import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.spdy.SpdyVersion;
+import org.rahmanj.sandshrew.policy.DownstreamServer;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayDeque;
@@ -17,7 +18,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Client for connections to a {@link DownstreamServer}.
+ * Client for connections to a {@link org.rahmanj.sandshrew.policy.DownstreamServer}.
  *
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
  */
@@ -28,7 +29,7 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
      * Construct an {@link DownstreamClient} instance
      *
      * @param upstreamChannel The {@link ProxyChannel} for the upstream channel
-     * @param server The {@link DownstreamServer} we are connecting to
+     * @param server The {@link org.rahmanj.sandshrew.policy.DownstreamServer} we are connecting to
      * @param workerGroup The shared {@link EventLoopGroup} that is backing our async IO operations
      */
     public DownstreamClient(ProxyChannel upstreamChannel, DownstreamServer server, EventLoopGroup workerGroup) {
@@ -272,6 +273,11 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
 
         if (msg instanceof HttpObject) {
             _upstreamChannel.send((HttpObject) msg);
+
+            if (msg instanceof  HttpResponse) {
+                _downstreamServer
+            }
+
         } else {
             _logger.log(Level.FINE, "Read non-HttpObject");
         }

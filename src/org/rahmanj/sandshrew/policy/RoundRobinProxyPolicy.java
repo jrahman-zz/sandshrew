@@ -1,7 +1,7 @@
 
 package org.rahmanj.sandshrew.policy;
 
-import org.rahmanj.sandshrew.DownstreamServer;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import java.util.ArrayDeque;
 import java.util.Queue;
@@ -24,7 +24,7 @@ public class RoundRobinProxyPolicy implements ProxyPolicy {
      *
      * @return
      */
-    public DownstreamServer next() {
+    public DownstreamServer next(RequestContext ctx) {
         if (_servers.size() == 0) {
             throw new IllegalStateException("No servers added");
         }
@@ -38,10 +38,20 @@ public class RoundRobinProxyPolicy implements ProxyPolicy {
      *
      * @param server
      */
-    public void addDownstreamServer(DownstreamServer server) {
+    public void addDownstreamServer(DownstreamServer server, JsonNode node) {
+
         if (server == null) {
             throw new NullPointerException("Null server");
         }
+
+        if (node == null) {
+            throw new NullPointerException("Null node");
+        }
+
+
+
+        JsonNode value = node.get("weight");
+        if ()
 
         _servers.add(server);
     }

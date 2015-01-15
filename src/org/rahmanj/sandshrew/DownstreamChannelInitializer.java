@@ -8,11 +8,10 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpContentCompressor;
 import io.netty.handler.codec.http.HttpContentDecompressor;
-import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.spdy.*;
 
 /**
- * Initialzer class for the {@link DownstreamServer} channel
+ * Initialzer class for the {@link org.rahmanj.sandshrew.policy.DownstreamServer} channel
  *
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
  */

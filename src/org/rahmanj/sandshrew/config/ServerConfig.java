@@ -1,8 +1,5 @@
 package org.rahmanj.sandshrew.config;
 
-import com.google.gson.annotations.SerializedName;
-import com.google.gson.stream.JsonReader;
-import com.google.gson.Gson;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,13 +27,7 @@ public class ServerConfig {
 
         // TODO (JR) Make this better
 
-        InputStream stream = Files.newInputStream(filePath);
-        ServerConfig config = null;
-        try (JsonReader reader = new JsonReader(new InputStreamReader(stream))) {
-            Gson gs = new Gson();
-            config = gs.fromJson(reader, ServerConfig.class);
-        }
-        return config;
+
     }
 
 
