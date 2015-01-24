@@ -43,6 +43,7 @@ public class ProxyServer {
 
     /**
      * Run the given proxy server, blocks until the server finishes running
+     * 
      * @return A {@link ChannelFuture} that can be waited upon to indicate closure of the listening socket
      * @throws Exception
      */

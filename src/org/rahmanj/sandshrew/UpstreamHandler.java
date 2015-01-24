@@ -7,6 +7,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMessage;
 
 import java.net.InetSocketAddress;
+import java.util.Queue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -225,7 +226,7 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
 
             // TODO (JR) Update this??
             _downstreamServer = route.getPolicy().selectDownstreamServer();
-            _downstreamClient = new DownstreamClient(this, _downstreamServer, _workerGroup);
+            _downstreamClient = new DownstreamClient(this, _downstreamServer, _channel.eventLoop());
 
             try {
                 // Start the downstream client connection
@@ -238,10 +239,23 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
             }
 
             // TODO (JR) Wait on the future before doing stuff
+            _downstreamClientFuture.addListener(new ChannelFutureListener() {
+                @Override
+                public void operationComplete(ChannelFuture channelFuture) throws Exception {
+                    if (channelFuture.isSuccess()) {
+                        channelFuture.
+                    } else if (channelFuture.cause() != null) {
+                        // TODO, failure case
+                    } else {
+                        // Operation was cancelled
+                    }
+                }
+            });
 
 
         } else if (isContent(msg)) {
             // TODO (JR) Send stuff to the downstream server
+            if (
         } else {
             // Badness
             _logger.log(Level.WARNING, "Unknown message type read");
@@ -285,21 +299,19 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
     }
 
     /**
-     * Disable automatic reads from the downstream server, the remote client cannot keep up
+     * Enable automatic reads from the downstream server, the remote client can keep up
      */
     protected void enableDownstreamReads() {
-        // TODO (JR) add identification information
         _logger.log(Level.FINE, "Backpressure from " + _remoteIdentifier + " over, enabling reads from");
-        // TODO (JR) Reenable reads from the downstream server
+        _downstreamClient.throttle();
     }
 
     /**
-     * Enable automatic reads from the downstream server, the remote client can keep up
+     * Disable automatic reads from the downstream server, the remote client cannot keep up
      */
     protected void disableDownstreamReads() {
-        // TODO (JR) add identification information
         _logger.log(Level.FINE, "Backpressure from " + _remoteIdentifier + ", disabling reads from");
-        // TODO (JR) Disable reads from the downsteam server
+        _downstreamClient.unthrottle();
     }
 
     /**
@@ -372,7 +384,10 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
      */
     private boolean _throttled;
 
-
+    /**
+     * Queue to store messages until we have connected to an downstream server
+     */
+    private Queue<HttpObject> _messageQueue;
 
     private static final Logger _logger = Logger.getLogger(
             UpstreamHandler.class.getName()

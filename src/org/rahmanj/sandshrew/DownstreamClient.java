@@ -9,6 +9,7 @@ import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.spdy.SpdyVersion;
 import org.rahmanj.sandshrew.policy.DownstreamServer;
+import org.rahmanj.sandshrew.policy.ThrottleListener;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayDeque;
@@ -22,7 +23,7 @@ import java.util.logging.Logger;
  *
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
  */
-public class DownstreamClient extends ChannelInboundHandlerAdapter implements ProxyChannel {
+public class DownstreamClient extends ChannelInboundHandlerAdapter implements ProxyChannel, ThrottleListener {
 
 
     /**
@@ -154,15 +155,32 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
     }
 
     /**
-     * Throttles automatic reading from this channel
+     * Throttles automatic reading from this channel. Delegate the counting of throttles to the shared
+     * {@link DownstreamStats} instance so we have globally shared throttling
      */
     public void throttle() {
+        _downstreamServer.stats().incrementThrottle();
+    }
+
+    /**
+     * Unthrottles automatic reading from this channel. elegate the counting of throttles to the shared
+     * {@link DownstreamStats} instance so we have globally shared throttling
+     */
+    public void unthrottle() {
+        _downstreamServer.stats().decrementThrottle();
+    }
+
+    /**
+     * Triggered when the downstream server becomes throttled.
+     * This callback will be invokved from a different threads (probably)
+     * so we run a Runnable inside the channel event loop for concurrency control
+     */
+    public void onThrottle() {
         _channel.eventLoop().execute(
                 new Runnable() {
                     @Override
                     public void run() {
                         _throttleCount++;
-                        // TODO (JR) Channel is implicitly non-null here
                         if (_channel != null && _throttleCount > 0) {
                             _channel.config().setAutoRead(false);
                         }
@@ -172,23 +190,24 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
     }
 
     /**
-     * Unthrottles automatic reading from this channel
+     * Triggered when the downstream server becomes throttled
+     * This callback will be invokved from a different threads (probably)
+     * so we run a Runnable inside the channel event loop for concurrency control
      */
-    public void unthrottle() {
+    public void onStopThrottle() {
         _channel.eventLoop().execute(
-            new Runnable() {
-                @Override
-                public void run() {
-                    if (_throttleCount > 0) {
-                        _throttleCount--;
-                    }
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        if (_throttleCount > 0) {
+                            _throttleCount--;
+                        }
 
-                    if(_channel != null && _throttleCount==0)
-                    {
-                        _channel.config().setAutoRead(true);
+                        if(_channel != null && _throttleCount==0) {
+                            _channel.config().setAutoRead(true);
+                        }
                     }
                 }
-            }
         );
     }
 

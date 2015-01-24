@@ -8,6 +8,14 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+
+/**
+ * TODO, refactor DownstreamServer, and DownstreamStats
+ *
+ * Need to reconsider the object model, and consider a model based more on composition than inheritance
+ *
+ */
+
 /**
  * Base class Representation of given downstream remote server and its information
  *
@@ -16,9 +24,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class DownstreamServer extends Service implements DownstreamServerInterface {
 
     public DownstreamServer(JsonNode node) throws URISyntaxException {
-        if (node == null) {
-            throw new NullPointerException("Null node");
-        }
         super((new URI(node.get("server").asText())).getHost(), (new URI(node.get("server").asText())).getPort());
         _throttleCount = new AtomicInteger(0);
         _stats = new DownstreamStats();
@@ -37,7 +42,7 @@ public class DownstreamServer extends Service implements DownstreamServerInterfa
     /**
      * Determines if the given downstream server is up or down
      *
-     * @return True ifthe downstream is down, false otherwise
+     * @return True if the downstream is down, false otherwise
      */
     public boolean isDown() {
         return _isDown;
