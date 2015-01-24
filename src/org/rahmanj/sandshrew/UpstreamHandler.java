@@ -14,7 +14,7 @@ import java.util.logging.Logger;
 
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.util.concurrent.GenericFutureListener;
-import org.rahmanj.sandshrew.policy.DownstreamServer;
+import org.rahmanj.sandshrew.policy.ServerInfo;
 import org.rahmanj.sandshrew.policy.RequestContext;
 import org.rahmanj.sandshrew.routes.ProxyRoute;
 
@@ -52,10 +52,9 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
     public void send(final HttpObject msg) {
 
         /**
-         * _channel should never be null or unconnected because the DownstreamHandler should not
+         * _channel should never be null or unconnected because the {@link DownstreamClient} should not
          * even begin to start calling this method until after we have began reading from the upstream client
          * By then _channel is non-null and connected as expected
-         *
          */
         _channel.eventLoop().execute(
                 new Runnable() {
@@ -241,17 +240,11 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
             }
 
             // Queue request to wait for the connection to complete
-            _messageQueue.add(req);
+            _messageQueue.add(new Message(req, null));
 
         } else if (isContent(msg)) {
-            // TODO (JR) Send stuff to the downstream server
 
-            if (_downstreamClient != null) {
-                // TODO, handle existing queued messages
-                _downstreamClient.send((HttpObject)msg);
-            } else {
-                _messageQueue.add((HttpObject)msg);
-            }
+            sendToDownstream((HttpObject)msg);
 
         } else {
             // Badness
@@ -260,7 +253,7 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
     }
 
     /**
-     * Handle backpressure from the remote client so we can throttle reads from the {@link org.rahmanj.sandshrew.policy.DownstreamServer}
+     * Handle backpressure from the remote client so we can throttle reads from the {@link org.rahmanj.sandshrew.policy.ServerInfo}
      *
      * @param ctx ChannelHandlerContext for this particular channel
      */
@@ -330,8 +323,22 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
     /**
      * We failed to connect to the downstream, take further action
      */
-    protected void downstreamFailed(final DownstreamServer server) {
+    protected void downstreamFailed(final ServerInfo server) {
         // TODO, handle failure by checking for a new downstream server
+    }
+
+    /**
+     * Send messages to the downstream
+     *
+     * @param msg {@link HttpObject} to send downstream
+     */
+    protected void sendToDownstream(HttpObject msg) {
+        if (_downstreamClient != null) {
+            // TODO, handle existing queued messages
+            _downstreamClient.send((HttpObject)msg);
+        } else {
+            _messageQueue.add(new Message((HttpObject)msg, null));
+        }
     }
 
     /**
@@ -424,12 +431,12 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
     private String _remoteIdentifier;
 
     /**
-     * {@link org.rahmanj.sandshrew.policy.DownstreamServer} we are proxying for
+     * {@link org.rahmanj.sandshrew.policy.ServerInfo} we are proxying for
      */
-    private DownstreamServer _downstreamServer;
+    private ServerInfo _downstreamServer;
 
     /**
-     * {@link ProxyChannel} to transmit data to the {@link DownstreamServer}
+     * {@link ProxyChannel} to transmit data to the {@link org.rahmanj.sandshrew.policy.ServerInfo}
      */
     private ProxyChannel _downstreamClient;
 
@@ -441,7 +448,7 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
     /**
      * Queue to store messages until we have connected to an downstream server
      */
-    private Queue<HttpObject> _messageQueue;
+    private Queue<Message> _messageQueue;
 
     private static final Logger _logger = Logger.getLogger(
             UpstreamHandler.class.getName()

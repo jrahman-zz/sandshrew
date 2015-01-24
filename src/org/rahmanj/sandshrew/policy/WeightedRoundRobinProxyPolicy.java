@@ -1,8 +1,11 @@
 
 package org.rahmanj.sandshrew.policy;
 
+import com.fasterxml.jackson.databind.JsonNode;
 
 /**
+ * Weighted round robin policy
+ *
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
  */
 public class WeightedRoundRobinProxyPolicy extends RoundRobinProxyPolicy {
@@ -14,17 +17,17 @@ public class WeightedRoundRobinProxyPolicy extends RoundRobinProxyPolicy {
      *
      * @return
      */
-    public DownstreamServer next(RequestContext ctx) {
+    public ServerInfo next(RequestContext ctx) {
         return super.next(ctx);
     }
 
     /**
      *
      * @param server
-     * @param weight
+     * @param node
      */
-    public void addDownstreamServer(DownstreamServer server, int weight) {
-        if (weight <= 0) {
+    public void addDownstreamServer(ServerInfo server, JsonNode node) {
+        if (node == null) {
             throw new IllegalArgumentException("Positive value required");
         }
 
@@ -32,8 +35,11 @@ public class WeightedRoundRobinProxyPolicy extends RoundRobinProxyPolicy {
             throw new NullPointerException("Null server");
         }
 
+        // TODO, fix this syntax
+        int weight = node.get("weight").asInt(1);
+
         while (weight-- > 0) {
-            super.addDownstreamServer(server);
+            super.addDownstreamServer(server, node);
         }
     }
 }

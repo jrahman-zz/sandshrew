@@ -5,7 +5,7 @@ package org.rahmanj.sandshrew.policy;
  *
  * @author Jason P. Rahman
  */
-public interface DownstreamServerInterface {
+public interface DownstreamInfoInterface {
 
 
     /**
@@ -44,5 +44,22 @@ public interface DownstreamServerInterface {
      * @return The number of throttle channels to the endpoint
      */
     public int incrementThrottle();
+
+
+    /**
+     * Registers a throttle listener to receive notifications. Note that the callback will be
+     * invoked on an arbitrary event loop.
+     *
+     * @param listener {@link ThrottleListener} to register to receive notifications
+     */
+    public void registerThrottleListener(ThrottleListener listener);
+
+    /**
+     * Remove a throttle listener
+     *
+     * @param listener
+     */
+    public void deregisterThrottleListener(ThrottleListener listener);
+
 
 }

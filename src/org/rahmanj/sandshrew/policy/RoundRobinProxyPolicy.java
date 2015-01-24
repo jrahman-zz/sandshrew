@@ -2,6 +2,7 @@
 package org.rahmanj.sandshrew.policy;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.util.ArrayDeque;
 import java.util.Queue;
@@ -17,28 +18,48 @@ public class RoundRobinProxyPolicy implements ProxyPolicy {
      *
      */
     public RoundRobinProxyPolicy() {
-        _servers = new ArrayDeque<DownstreamServer>();
+        _servers = new ArrayDeque<ServerInfo>();
     }
 
     /**
      *
      * @return
      */
-    public DownstreamServer next(RequestContext ctx) {
+    public ServerInfo next(RequestContext ctx) {
         if (_servers.size() == 0) {
             throw new IllegalStateException("No servers added");
         }
 
-        DownstreamServer server = _servers.remove();
+        ServerInfo server = _servers.remove();
         _servers.add(server);
         return server;
     }
 
     /**
+     * Mark currently added server as failed and unavailable
      *
-     * @param server
+     * @param server {@link ServerInfo} about the server we have updated the status of
      */
-    public void addDownstreamServer(DownstreamServer server, JsonNode node) {
+    public void markAsFailed(ServerInfo server) {
+        throw new NotImplementedException();
+    }
+
+    /**
+     * Mark currently added server as alive and available
+     *
+     * @param server {@link ServerInfo} about the server we have updated the status of
+     */
+    public void markAsLive(ServerInfo server) {
+        throw new NotImplementedException();
+    }
+
+    /**
+     * Add a new server to a given route policy
+     *
+     * @param server Shared {@link ServerInfo} for the route entry
+     * @param node {@link JsonNode} from the route entry that the {@link ServerInfo} object is associated with
+     */
+    public void addDownstreamServer(ServerInfo server, JsonNode node) {
 
         if (server == null) {
             throw new NullPointerException("Null server");
@@ -48,16 +69,11 @@ public class RoundRobinProxyPolicy implements ProxyPolicy {
             throw new NullPointerException("Null node");
         }
 
-
-
-        JsonNode value = node.get("weight");
-        if ()
-
         _servers.add(server);
     }
 
     /**
      * Store the servers for the Round Robin policy
      */
-    private Queue<DownstreamServer> _servers;
+    private Queue<ServerInfo> _servers;
 }

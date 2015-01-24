@@ -11,7 +11,7 @@ import io.netty.handler.codec.http.HttpContentDecompressor;
 import io.netty.handler.codec.spdy.*;
 
 /**
- * Initialzer class for the {@link org.rahmanj.sandshrew.policy.DownstreamServer} channel
+ * Initialzer class for the {@link org.rahmanj.sandshrew.policy.ServerInfo} channel
  *
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
  */

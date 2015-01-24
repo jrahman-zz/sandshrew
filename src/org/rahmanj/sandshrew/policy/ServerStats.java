@@ -13,16 +13,13 @@ import java.util.logging.Logger;
  *
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
  */
-public class DownstreamStats {
+public class ServerStats {
 
-    public DownstreamStats() {
+    public ServerStats() {
         _pendingRequests = new AtomicLong(0);
         _completedRequests = new AtomicLong(0);
         _bytesSent = new AtomicLong(0);
         _bytesReceived = new AtomicLong(0);
-        _throttleRequests = new AtomicLong(0);
-
-        _throttleListeners = new HashSet<ThrottleListener>();
     }
 
     /**
@@ -59,44 +56,6 @@ public class DownstreamStats {
     }
 
     /**
-     * Increment the throttle count for this downstream
-     */
-    public void incrementThrottle() {
-        long count = _throttleRequests.getAndIncrement();
-        if (count == 0) {
-            // We must run the notifiers since the throttle count raised above 0
-            synchronized (_throttleListeners) {
-                for (ThrottleListener listener : _throttleListeners) {
-                    try {
-                        listener.onThrottle();
-                    } catch (Exception e) {
-                        _logger.fine("Exception: " + e.toString());
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Decrement the throttle count for this downstream. Listeners may be notified
-     */
-    public void decrementThrottle() {
-        long count = _throttleRequests.decrementAndGet();
-        if (count == 0) {
-            // Count hit 0, run notifiers
-            synchronized (_throttleListeners) {
-                for (ThrottleListener listener : _throttleListeners) {
-                    try {
-                        listener.onStopThrottle();
-                    } catch (Exception e) {
-                        _logger.fine("Exception: " + e.toString());
-                    }
-                }
-            }
-        }
-    }
-
-    /**
      *
      * @return
      */
@@ -128,30 +87,6 @@ public class DownstreamStats {
         return _bytesReceived.get();
     }
 
-    /**
-     * Registers a throttle listener to receive notifications. Note that the callback will be
-     * invoked on an arbitrary event loop.
-     *
-     * @param listener {@link ThrottleListener} to register to receive notifications
-     */
-    public void registerThrottleListener(ThrottleListener listener) {
-        synchronized (_throttleListeners) {
-            _throttleListeners.add(listener);
-        }
-    }
-
-    /**
-     * Remove a throttle listener
-     *
-     * @param listener
-     */
-    public void deregisterThrottleListener(ThrottleListener listener) {
-        synchronized (_throttleListeners) {
-            _throttleListeners.remove(listener);
-        }
-    }
-
-
 
     /**
      * Total requests currently in flight
@@ -174,16 +109,6 @@ public class DownstreamStats {
     private AtomicLong _bytesReceived;
 
 
-    /**
-     * Total number of throttle requests
-     */
-    private AtomicLong _throttleRequests;
-
-    /**
-     * Set of entities waiting to be notified of a throttle state change event
-     */
-    private Set<ThrottleListener> _throttleListeners;
-
     // TODO (JR) Handle the latency information
 
     /**
@@ -195,9 +120,4 @@ public class DownstreamStats {
      * Stores
      */
     private double[] _latencyStats;
-
-    private static final Logger _logger = Logger.getLogger(
-            DownstreamStats.class.getName()
-    );
-
 }

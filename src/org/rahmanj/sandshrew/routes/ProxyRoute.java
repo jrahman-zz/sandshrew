@@ -1,7 +1,6 @@
 
 package org.rahmanj.sandshrew.routes;
 
-import org.rahmanj.sandshrew.policy.DownstreamServer;
 import org.rahmanj.sandshrew.policy.ProxyPolicy;
 
 /**
@@ -15,7 +14,7 @@ public class ProxyRoute {
      * Construct a {@link ProxyRoute} instance
      *
      * @param endpoint {@link ProxyEndpoint} publicly exposed endpoint for this route
-     * @param policy The {@link ProxyPolicy} that decides which {@link DownstreamServer} should receive traffic
+     * @param policy The {@link ProxyPolicy} that decides which {@link org.rahmanj.sandshrew.policy.ServerInfo} should receive traffic
      */
     public ProxyRoute(ProxyEndpoint endpoint, ProxyPolicy policy) {
         _endpoint = endpoint;

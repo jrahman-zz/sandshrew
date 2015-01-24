@@ -8,7 +8,7 @@ import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.spdy.SpdyVersion;
-import org.rahmanj.sandshrew.policy.DownstreamServer;
+import org.rahmanj.sandshrew.policy.ServerInfo;
 import org.rahmanj.sandshrew.policy.ThrottleListener;
 
 import java.net.InetSocketAddress;
@@ -19,7 +19,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Client for connections to a {@link org.rahmanj.sandshrew.policy.DownstreamServer}.
+ * Client for connections to a {@link org.rahmanj.sandshrew.policy.ServerInfo}.
  *
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
  */
@@ -30,10 +30,10 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
      * Construct an {@link DownstreamClient} instance
      *
      * @param upstreamChannel The {@link ProxyChannel} for the upstream channel
-     * @param server The {@link org.rahmanj.sandshrew.policy.DownstreamServer} we are connecting to
+     * @param server The {@link org.rahmanj.sandshrew.policy.ServerInfo} we are connecting to
      * @param workerGroup The shared {@link EventLoopGroup} that is backing our async IO operations
      */
-    public DownstreamClient(ProxyChannel upstreamChannel, DownstreamServer server, EventLoopGroup workerGroup) {
+    public DownstreamClient(ProxyChannel upstreamChannel, ServerInfo server, EventLoopGroup workerGroup) {
         _upstreamChannel = upstreamChannel;
         _downstreamServer = server;
         _workerGroup = workerGroup;
@@ -46,11 +46,11 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
      * Construct an {@link DownstreamClient} instance
      *
      * @param upstreamChannel The {@link ProxyChannel} for the upstream channel
-     * @param server The {@link DownstreamServer} we are connecting to
+     * @param server The {@link org.rahmanj.sandshrew.policy.ServerInfo} we are connecting to
      * @param workerGroup The shared {@link EventLoopGroup} that is backing our async IO operations
      * @param spdyVersion The {@link SpdyVersion} to use if SPDY is requested
      */
-    public DownstreamClient(ProxyChannel upstreamChannel, DownstreamServer server, EventLoopGroup workerGroup, SpdyVersion spdyVersion) {
+    public DownstreamClient(ProxyChannel upstreamChannel, ServerInfo server, EventLoopGroup workerGroup, SpdyVersion spdyVersion) {
         _upstreamChannel = upstreamChannel;
         _downstreamServer = server;
         _workerGroup = workerGroup;
@@ -63,7 +63,7 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
     /**
      * Starts the {@link DownstreamClient} asynchronously
      *
-     * @return Returns a {@link ChannelFuture} for the connection of the client to the {@link DownstreamServer}
+     * @return Returns a {@link ChannelFuture} for the connection of the client to the {@link org.rahmanj.sandshrew.policy.ServerInfo}
      * @throws Exception
      */
     public ChannelFuture run() {
@@ -156,18 +156,18 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
 
     /**
      * Throttles automatic reading from this channel. Delegate the counting of throttles to the shared
-     * {@link DownstreamStats} instance so we have globally shared throttling
+     * {@link org.rahmanj.sandshrew.policy.ServerStats} instance so we have globally shared throttling
      */
     public void throttle() {
-        _downstreamServer.stats().incrementThrottle();
+        _downstreamServer.incrementThrottle();
     }
 
     /**
      * Unthrottles automatic reading from this channel. elegate the counting of throttles to the shared
-     * {@link DownstreamStats} instance so we have globally shared throttling
+     * {@link org.rahmanj.sandshrew.policy.ServerStats} instance so we have globally shared throttling
      */
     public void unthrottle() {
-        _downstreamServer.stats().decrementThrottle();
+        _downstreamServer.decrementThrottle();
     }
 
     /**
@@ -285,7 +285,7 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
      * Handle read events from the downstream server
      *
      * @param ctx The {@link ChannelHandlerContext} for this channel
-     * @param msg A {@link HttpResponse} or {@link HttpContent} from the {@link DownstreamServer}
+     * @param msg A {@link HttpResponse} or {@link HttpContent} from the {@link org.rahmanj.sandshrew.policy.ServerInfo}
      */
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
@@ -294,7 +294,7 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
             _upstreamChannel.send((HttpObject) msg);
 
             if (msg instanceof  HttpResponse) {
-                _downstreamServer
+
             }
 
         } else {
@@ -436,29 +436,6 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
         _upstreamChannel.throttle();
     }
 
-
-    /**
-     * Wrapper object to store {@link HttpObject}s and {@link ChannelPromise}s bundled together
-     * in the message queue
-     */
-    private class Message {
-        public Message(HttpObject msg, ChannelPromise promise) {
-            _msg = msg;
-            _promise = promise;
-        }
-
-        public HttpObject getMessage() {
-            return _msg;
-        }
-
-        public ChannelPromise getPromise() {
-            return _promise;
-        }
-
-        private HttpObject _msg;
-        private ChannelPromise _promise;
-    }
-
     /**
      * Default initializations for {@link DownstreamClient}
      */
@@ -505,14 +482,14 @@ public class DownstreamClient extends ChannelInboundHandlerAdapter implements Pr
     private Channel _channel;
 
     /**
-     * {@link InetSocketAddress} for the remote {@link DownstreamServer}
+     * {@link InetSocketAddress} for the remote {@link org.rahmanj.sandshrew.policy.ServerInfo}
      */
     private InetSocketAddress _remoteAddress;
 
     /**
-     * {@link DownstreamServer} this client channel is proxying to
+     * {@link org.rahmanj.sandshrew.policy.ServerInfo} this client channel is proxying to
      */
-    private DownstreamServer _downstreamServer;
+    private ServerInfo _downstreamServer;
 
     /**
      * Track if the connection is writable

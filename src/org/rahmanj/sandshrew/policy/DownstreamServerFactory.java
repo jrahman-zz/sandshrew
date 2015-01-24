@@ -10,10 +10,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 public interface DownstreamServerFactory {
 
     /**
-     * Build a {@link DownstreamServer} based on
+     * Build a {@link ServerInfo} based on
      * @param node
      * @return
      */
-    public DownstreamServer createDownstreamServer(JsonNode node);
+    public ServerInfo createDownstreamServer(JsonNode node);
 
 }

@@ -1,5 +1,7 @@
 package org.rahmanj.sandshrew.policy;
 
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
+
 import java.util.Vector;
 
 /**
@@ -7,14 +9,14 @@ import java.util.Vector;
  *
  * @author Jason P. Rahman
  */
-public class IpHashPolicy {
+public class IpHashPolicy implements ProxyPolicy {
 
     public IpHashPolicy() {
-        _servers = new Vector<DownstreamServer>();
+        _servers = new Vector<ServerInfo>();
     }
 
 
-    public DownstreamServer next(RequestContext ctx) {
+    public ServerInfo next(RequestContext ctx) {
         if (_servers.size() == 0) {
             throw new IllegalStateException("No servers added");
         }
@@ -29,11 +31,29 @@ public class IpHashPolicy {
     }
 
     /**
+     * Mark currently added server as failed and unavailable
+     *
+     * @param server {@link ServerInfo} about the server we have updated the status of
+     */
+    public void markAsFailed(ServerInfo server) {
+        throw new NotImplementedException();
+    }
+
+    /**
+     * Mark currently added server as alive and available
+     *
+     * @param server {@link ServerInfo} about the server we have updated the status of
+     */
+    public void markAsLive(ServerInfo server) {
+        throw new NotImplementedException();
+    }
+
+    /**
      * Add a new server to the {@link IpHashPolicy}
      *
      * @param server
      */
-    public void addDownstreamServer(DownstreamServer server) {
+    public void addDownstreamServer(ServerInfo server) {
         if (server == null) {
             throw new NullPointerException("Null server");
         }
@@ -41,8 +61,8 @@ public class IpHashPolicy {
     }
 
     /**
-     * Vector of {@link DownstreamServer}s for the policy to use
+     * Vector of {@link ServerInfo}s for the policy to use
      */
-    private Vector<DownstreamServer> _servers;
+    private Vector<ServerInfo> _servers;
 
 }

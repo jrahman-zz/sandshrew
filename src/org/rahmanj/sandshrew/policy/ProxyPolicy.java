@@ -1,6 +1,8 @@
 
 package org.rahmanj.sandshrew.policy;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 /**
  * Base class for general proxy policies
  *
@@ -8,6 +10,30 @@ package org.rahmanj.sandshrew.policy;
  */
 public interface ProxyPolicy {
 
+    /**
+     * Add a new server to a given route policy
+     *
+     * @param server Shared {@link ServerInfo} for the route entry
+     * @param node {@link com.fasterxml.jackson.databind.JsonNode} from the route entry that the {@link ServerInfo} object is associated with
+     */
+    public void addDownstreamServer(ServerInfo server, JsonNode node);
 
-    public DownstreamServer next(RequestContext ctx);
+    /**
+     *
+     * @param ctx
+     * @return
+     */
+    public ServerInfo next(RequestContext ctx);
+
+    /**
+     *
+     * @param server
+     */
+    public void markAsFailed(ServerInfo server);
+
+    /**
+     *
+     * @param server
+     */
+    public void markAsLive(ServerInfo server);
 }

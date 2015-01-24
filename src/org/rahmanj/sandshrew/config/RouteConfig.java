@@ -16,6 +16,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 
 /**
+ * Primary object representing the current route configuration
+ *
  * @author Jason P. Rahman
  */
 public class RouteConfig {
@@ -48,6 +50,7 @@ public class RouteConfig {
 
         }
 
+        return null;
     }
 
     public ProxyRoute lookupRoute(HttpRequest request) {
@@ -56,9 +59,7 @@ public class RouteConfig {
         String location = request.getUri();
         HttpHeaders headers = request.headers();
 
-
-
+        // TODO implement
+        return null;
     }
-
-
 }
