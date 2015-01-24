@@ -24,7 +24,7 @@ import java.util.logging.Logger;
  *
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
  */
-public class ServerInfo extends Service implements DownstreamInfoInterface {
+public class ServerInfo extends Service implements ServerInfoInterface {
 
     public ServerInfo(JsonNode node) throws URISyntaxException {
         super((new URI(node.get("server").asText())).getHost(), (new URI(node.get("server").asText())).getPort());

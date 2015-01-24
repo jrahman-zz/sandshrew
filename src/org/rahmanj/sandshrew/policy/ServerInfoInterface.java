@@ -5,7 +5,7 @@ package org.rahmanj.sandshrew.policy;
  *
  * @author Jason P. Rahman
  */
-public interface DownstreamInfoInterface {
+public interface ServerInfoInterface {
 
 
     /**
