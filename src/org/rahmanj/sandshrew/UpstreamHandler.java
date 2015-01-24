@@ -5,6 +5,7 @@ import io.netty.channel.*;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMessage;
+import io.netty.handler.codec.http.HttpRequest;
 
 import java.net.InetSocketAddress;
 import java.util.Queue;
@@ -12,7 +13,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import io.netty.handler.codec.http.HttpObject;
+import io.netty.util.concurrent.GenericFutureListener;
 import org.rahmanj.sandshrew.policy.DownstreamServer;
+import org.rahmanj.sandshrew.policy.RequestContext;
 import org.rahmanj.sandshrew.routes.ProxyRoute;
 
 /**
@@ -36,9 +39,6 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
 
         _downstreamServer = null;
         _downstreamClient = null;
-        _downstreamClientFuture = null;
-
-
         _throttled = false;
     }
 
@@ -57,7 +57,6 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
          * By then _channel is non-null and connected as expected
          *
          */
-
         _channel.eventLoop().execute(
                 new Runnable() {
                     @Override
@@ -218,47 +217,45 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
         if (isHeader(msg)) {
-            HttpMessage req = (HttpMessage)msg;
-            HttpHeaders header = req.headers();
+            HttpRequest req = (HttpRequest)msg;
+            HttpHeaders headers = req.headers();
 
             // TODO (JR) Determine the route
-            ProxyRoute route = new ProxyRoute(null, null);
+            ProxyRoute route = getRoute(headers);
+            RequestContext requestContext = new RequestContext(req, ctx.channel());
 
             // TODO (JR) Update this??
-            _downstreamServer = route.getPolicy().selectDownstreamServer();
-            _downstreamClient = new DownstreamClient(this, _downstreamServer, _channel.eventLoop());
+            _downstreamServer = route.getPolicy().next(requestContext);
+            DownstreamClient downstreamClient = new DownstreamClient(this, _downstreamServer, _channel.eventLoop());
+            ChannelFuture downstreamClientFuture;
 
             try {
                 // Start the downstream client connection
                 // Note that this only starts the client connection process
                 // The client isn't actually connected yet, but will be once
                 // the future completes
-                _downstreamClientFuture = _downstreamClient.run();
+                downstreamClientFuture = _downstreamClient.run();
+                downstreamClientFuture.addListener(new ClientConnectionListener(downstreamClient));
             } catch (Exception ex) {
                 // TODO (JR) Blow things up as needed
             }
 
-            // TODO (JR) Wait on the future before doing stuff
-            _downstreamClientFuture.addListener(new ChannelFutureListener() {
-                @Override
-                public void operationComplete(ChannelFuture channelFuture) throws Exception {
-                    if (channelFuture.isSuccess()) {
-                        channelFuture.
-                    } else if (channelFuture.cause() != null) {
-                        // TODO, failure case
-                    } else {
-                        // Operation was cancelled
-                    }
-                }
-            });
-
+            // Queue request to wait for the connection to complete
+            _messageQueue.add(req);
 
         } else if (isContent(msg)) {
             // TODO (JR) Send stuff to the downstream server
-            if (
+
+            if (_downstreamClient != null) {
+                // TODO, handle existing queued messages
+                _downstreamClient.send((HttpObject)msg);
+            } else {
+                _messageQueue.add((HttpObject)msg);
+            }
+
         } else {
             // Badness
-            _logger.log(Level.WARNING, "Unknown message type read");
+            _logger.warning("Unknown message type read");
         }
     }
 
@@ -299,6 +296,45 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
     }
 
     /**
+     * Find the route for a given request to follow
+     *
+     * @param header
+     * @return
+     */
+    protected ProxyRoute getRoute(HttpHeaders header) {
+        // TODO, complete this
+        ProxyRoute route = new ProxyRoute(null, null);
+        return route;
+    }
+
+    /**
+     * We successfully connected to the downstream, start the connection process
+     *
+     * @param client {@link ProxyChannel} for which a connection was just established
+     */
+    protected void downstreamConnected(final ProxyChannel client) {
+        // Run inside the event loop for concurrency control
+        _channel.eventLoop().execute(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        if (_downstreamClient == null) {
+                            _downstreamClient = client;
+                            // TODO, start flushing messages from the queue
+                        }
+                    }
+                }
+        );
+    }
+
+    /**
+     * We failed to connect to the downstream, take further action
+     */
+    protected void downstreamFailed(final DownstreamServer server) {
+        // TODO, handle failure by checking for a new downstream server
+    }
+
+    /**
      * Enable automatic reads from the downstream server, the remote client can keep up
      */
     protected void enableDownstreamReads() {
@@ -332,6 +368,29 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
      */
     protected boolean isContent(Object msg) {
         return msg instanceof HttpContent;
+    }
+
+    /**
+     * Handler class for client futures
+     */
+    private class ClientConnectionListener implements GenericFutureListener<ChannelFuture> {
+
+        ClientConnectionListener(ProxyChannel client) {
+            _client = client; // Temp hack until we have DownstreamClientFuture
+        }
+        public void operationComplete(ChannelFuture future) {
+            if (future.isSuccess()) {
+                downstreamConnected(_client);
+            } else if (future.cause() != null) {
+                /// TODO, get the downstream server in here somehow
+                _logger.warning("Exception: " + future.cause().toString());
+                downstreamFailed(null);
+            } else {
+                downstreamFailed(null);
+            }
+        }
+
+        private ProxyChannel _client;
     }
 
     /**
@@ -373,11 +432,6 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
      * {@link ProxyChannel} to transmit data to the {@link DownstreamServer}
      */
     private ProxyChannel _downstreamClient;
-
-    /**
-     * {@link ChannelFuture} for the Close event on the downstream client
-     */
-    private ChannelFuture _downstreamClientFuture;
 
     /**
      * Tracks if the channel is read throttled or not
