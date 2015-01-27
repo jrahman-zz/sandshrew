@@ -1,5 +1,6 @@
 package org.rahmanj.sandshrew.policy;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.util.Vector;
@@ -9,7 +10,7 @@ import java.util.Vector;
  *
  * @author Jason P. Rahman
  */
-public class IpHashPolicy implements ProxyPolicy {
+public class IpHashPolicy implements RoutePolicy {
 
     public IpHashPolicy() {
         _servers = new Vector<ServerInfo>();
@@ -53,11 +54,19 @@ public class IpHashPolicy implements ProxyPolicy {
      *
      * @param server
      */
-    public void addDownstreamServer(ServerInfo server) {
+    public void addDownstreamServer(ServerInfo server, JsonNode serverNode) {
         if (server == null) {
             throw new NullPointerException("Null server");
         }
+
         _servers.add(server);
+    }
+
+
+    public class IpHashPolicyFactory implements PolicyFactory {
+        public RoutePolicy createPolicy(JsonNode policyNode) {
+            throw new NotImplementedException();
+        }
     }
 
     /**

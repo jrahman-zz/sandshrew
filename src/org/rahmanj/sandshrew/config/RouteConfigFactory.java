@@ -1,0 +1,103 @@
+package org.rahmanj.sandshrew.config;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.rahmanj.sandshrew.policy.PolicyFactory;
+import org.rahmanj.sandshrew.policy.ServerFactory;
+import org.rahmanj.sandshrew.policy.ServerInfo;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.logging.Logger;
+
+/**
+ * Factory to create {@link RouteConfig} objects
+ *
+ * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
+ */
+public class RouteConfigFactory {
+
+    public RouteConfigFactory(Map<String, PolicyFactory> policyFactories, ServerFactory serverFactory) {
+        _policyFactories = policyFactories;
+        _serverFactory = serverFactory;
+    }
+
+    public RouteConfig buildRouteConfig(Path filePath) throws IOException {
+
+        // TODO (JR) Open file
+
+        // TODO (JR) Read contents
+
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode configNode = mapper.readTree(Files.newInputStream(filePath));
+
+        if (configNode.get("pools") == null || !configNode.get("pools").isArray()) {
+            throw new IllegalArgumentException("No pools defined");
+        }
+        JsonNode poolsNode = configNode.get("pools");
+        Map<String, Pool> pools = parsePools(poolsNode);
+
+        if (configNode.get("routes") == null || !configNode.get("routes").isArray()) {
+            throw new IllegalArgumentException("No routes defined");
+        }
+        JsonNode routesNode = configNode.get("routes");
+        Map<String, Route> routes = parseRoutes(routesNode, pools);
+
+        throw new NotImplementedException();
+    }
+
+    /**
+     * Parse the {@link Pool}s
+     * @param poolsNode {@link JsonNode} of an array containing {@link Pool}s
+     * @return
+     */
+    private Map<String, Pool> parsePools(JsonNode poolsNode) {
+
+        Map<String, Pool> pools = new HashMap<String, Pool>();
+
+        Pool pool;
+        for (JsonNode poolNode : poolsNode) {
+            try {
+                pool = new Pool(poolNode, _policyFactories, _serverFactory);
+                if (pools.containsKey(pool.getPoolName())) {
+                    // TODO, just treat this as warning, think more about this
+                    _logger.warning("Duplicate pool " + pool.getPoolName());
+                }
+                pools.put(pool.getPoolName(), pool);
+            } catch (IllegalArgumentException e) {
+                // DO we warn, or crash??
+            } catch (Exception e) {
+
+            }
+        }
+
+        return pools;
+    }
+
+    /**
+     *
+     * @param routesNode
+     * @return
+     */
+    private Map<String, Route> parseRoutes(JsonNode routesNode, Map<String, Pool> pools) {
+        throw new NotImplementedException();
+    }
+
+    /**
+     * Mappings from policy types to each {@link PolicyFactory}
+     */
+    private Map<String, PolicyFactory> _policyFactories;
+
+    /**
+     * Globally shared server factory used to ensure we do not duplicate any {@link ServerInfo} objects
+     */
+    private ServerFactory _serverFactory;
+
+    private static final Logger _logger = Logger.getLogger(
+            RouteConfigFactory.class.getName()
+    );
+}

@@ -12,12 +12,12 @@ import java.util.Queue;
  *
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
  */
-public class RoundRobinProxyPolicy implements ProxyPolicy {
+public class RoundRobinRoutePolicy implements RoutePolicy {
 
     /**
      *
      */
-    public RoundRobinProxyPolicy() {
+    public RoundRobinRoutePolicy() {
         _servers = new ArrayDeque<ServerInfo>();
     }
 
@@ -70,6 +70,12 @@ public class RoundRobinProxyPolicy implements ProxyPolicy {
         }
 
         _servers.add(server);
+    }
+
+    public class RoundRobinPolicyFactory implements PolicyFactory {
+        public RoutePolicy createPolicy(JsonNode policyNode) {
+            throw new NotImplementedException();
+        }
     }
 
     /**

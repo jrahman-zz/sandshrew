@@ -8,7 +8,7 @@ import java.net.InetSocketAddress;
 
 /**
  *
- * Context surrounding a request for use by {@link ProxyPolicy}
+ * Context surrounding a request for use by {@link RoutePolicy}
  *
  * @author Jason P. Rahman
  */

@@ -15,7 +15,7 @@ import java.util.TreeMap;
  *
  * @author Jason P. Rahman
  */
-public class EvenLoadPolicy implements ProxyPolicy {
+public class EvenLoadPolicy implements RoutePolicy {
 
     public EvenLoadPolicy() {
         _sortedServers = new TreeMap<Long, ServerInfo>();
@@ -23,6 +23,7 @@ public class EvenLoadPolicy implements ProxyPolicy {
     }
 
     /**
+     * Get the next upstream for use
      *
      * @param ctx
      * @return
@@ -76,6 +77,12 @@ public class EvenLoadPolicy implements ProxyPolicy {
         }
 
         _servers.add(server);
+    }
+
+    public class EvenLoadPolicyFactory implements PolicyFactory {
+        public RoutePolicy createPolicy(JsonNode policyNode) {
+            throw new NotImplementedException();
+        }
     }
 
     /**

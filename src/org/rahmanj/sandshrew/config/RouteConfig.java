@@ -10,9 +10,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 
 /**
@@ -27,30 +29,6 @@ public class RouteConfig {
      */
     private RouteConfig() {
 
-    }
-
-    public static RouteConfig buildRouteConfig(Path filePath) throws IOException {
-
-        // TODO (JR) Open file
-
-        // TODO (JR) Read contents
-
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode node = mapper.readTree(Files.newInputStream(filePath));
-
-        Iterator<String> fieldNames = node.fieldNames();
-        List<JsonNode> upstreams = node.findValues("upstreams");
-        List<JsonNode> locations = node.findValues("locations");
-
-        for (JsonNode upstream : upstreams) {
-
-        }
-
-        for (JsonNode location : locations) {
-
-        }
-
-        return null;
     }
 
     public ProxyRoute lookupRoute(HttpRequest request) {

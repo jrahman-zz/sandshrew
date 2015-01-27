@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.JsonNode;
  *
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
  */
-public interface ProxyPolicy {
+public interface RoutePolicy {
 
     /**
      * Add a new server to a given route policy

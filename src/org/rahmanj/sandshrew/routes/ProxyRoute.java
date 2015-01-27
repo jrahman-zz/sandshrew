@@ -1,7 +1,7 @@
 
 package org.rahmanj.sandshrew.routes;
 
-import org.rahmanj.sandshrew.policy.ProxyPolicy;
+import org.rahmanj.sandshrew.policy.RoutePolicy;
 
 /**
  * Define details of a given proxy route
@@ -14,9 +14,9 @@ public class ProxyRoute {
      * Construct a {@link ProxyRoute} instance
      *
      * @param endpoint {@link ProxyEndpoint} publicly exposed endpoint for this route
-     * @param policy The {@link ProxyPolicy} that decides which {@link org.rahmanj.sandshrew.policy.ServerInfo} should receive traffic
+     * @param policy The {@link org.rahmanj.sandshrew.policy.RoutePolicy} that decides which {@link org.rahmanj.sandshrew.policy.ServerInfo} should receive traffic
      */
-    public ProxyRoute(ProxyEndpoint endpoint, ProxyPolicy policy) {
+    public ProxyRoute(ProxyEndpoint endpoint, RoutePolicy policy) {
         _endpoint = endpoint;
         _policy = policy;
     }
@@ -28,7 +28,7 @@ public class ProxyRoute {
      * Get the current proxy policy in effect
      * @return
      */
-    public ProxyPolicy getPolicy() {
+    public RoutePolicy getPolicy() {
         return _policy;
     }
 
@@ -50,6 +50,6 @@ public class ProxyRoute {
      * Note that this object will encapsulate all possible downstream servers
      * If you wish to change the set
      */
-    private ProxyPolicy _policy;
+    private RoutePolicy _policy;
 
 }
