@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.logging.Logger;
 
@@ -21,6 +22,11 @@ import java.util.logging.Logger;
  */
 public class RouteConfigFactory {
 
+    /**
+     *
+     * @param policyFactories
+     * @param serverFactory
+     */
     public RouteConfigFactory(Map<String, PolicyFactory> policyFactories, ServerFactory serverFactory) {
         _policyFactories = policyFactories;
         _serverFactory = serverFactory;
@@ -45,11 +51,13 @@ public class RouteConfigFactory {
         JsonNode routesNode = configNode.get("routes");
         Map<String, Route> routes = parseRoutes(routesNode, pools);
 
-        throw new NotImplementedException();
+        // TODO, update
+        return new RouteConfig(new ArrayList(routes.values()), new ArrayList(pools.values()));
     }
 
     /**
      * Parse the {@link Pool}s from the configuration file
+     *
      * @param poolsNode {@link JsonNode} of an array containing {@link Pool}s
      * @return
      */
@@ -77,8 +85,10 @@ public class RouteConfigFactory {
     }
 
     /**
+     * Parse the routes from the config file
      *
-     * @param routesNode
+     * @param routesNode {@link JsonNode} containing route configuration information
+     * @param pools @{link Map<String, Pool>} mapping from pool names to {@link Pool}s
      * @return
      */
     private Map<String, Route> parseRoutes(JsonNode routesNode, Map<String, Pool> pools) {
@@ -95,7 +105,7 @@ public class RouteConfigFactory {
                 throw new NotImplementedException();
             }
         }
-        
+
         return routes;
     }
 

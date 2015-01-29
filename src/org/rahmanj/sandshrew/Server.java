@@ -4,15 +4,16 @@ package org.rahmanj.sandshrew;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import org.rahmanj.sandshrew.config.FileChangedErrorHandler;
-import org.rahmanj.sandshrew.config.FileChangedHandler;
-import org.rahmanj.sandshrew.config.FileWatcher;
+import org.rahmanj.sandshrew.config.*;
+import org.rahmanj.sandshrew.policy.*;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Logger;
 
 /**
@@ -22,10 +23,24 @@ import java.util.logging.Logger;
  */
 public class Server implements FileChangedErrorHandler, FileChangedHandler {
 
-    public Server() {
+    public Server(String configFilePath) {
 
+        _configFilePath = Paths.get(configFilePath);
         _proxyServers = new HashMap<Integer, ProxyServer>();
 
+
+        // TODO, refactor this
+
+        // Create all possible policies
+        Map<String, PolicyFactory> policyFactories = new HashMap<String, PolicyFactory>();
+        policyFactories.put("ip_hash", new IpHashPolicy.IpHashPolicyFactory());
+        policyFactories.put("even_load", new EvenLoadPolicy.EvenLoadPolicyFactory());
+        policyFactories.put("round_robin", new RoundRobinRoutePolicy.RoundRobinPolicyFactory());
+        policyFactories.put("weighted_round_robin", new WeightedRoundRobinProxyPolicy.WeightedRoundRobinPolicyFactory());
+
+        ServerFactory serverFactory = new ServerFactory();
+
+        _configFactory = new RouteConfigFactory(policyFactories, serverFactory);
     }
 
 
@@ -40,12 +55,16 @@ public class Server implements FileChangedErrorHandler, FileChangedHandler {
 
     public static void main(String[] args) {
 
-        Server server = new Server();
+        String configFilePath = args[1];
+
+        // TODO, arg parsing
+
+        Server server = new Server(configFilePath);
 
         try {
             server.run();
         } catch (Exception e) {
-
+            _logger.severe("Exception " + e.toString());
         }
     }
 
@@ -57,10 +76,49 @@ public class Server implements FileChangedErrorHandler, FileChangedHandler {
         // TODO (JR) Stub later
     }
 
+
+    /**
+     * Begin running all the proxy servers, returns immediately
+     * @throws Exception
+     */
+    public void run() throws Exception {
+
+        // Start each proxy independently
+        for (ProxyServer proxy : _proxyServers.values()) {
+            proxy.run();
+        }
+    }
+
+    public void onFileChanged(Path filePath) {
+        RouteConfig config;
+
+        try {
+            config = _configFactory.buildRouteConfig(filePath);
+        } catch (Exception e) {
+            // TODO
+            throw new NotImplementedException();
+        }
+
+        configurationMigration(config);
+    }
+
+    public void onFileChangedError(IOException e) {
+        // Handle errors when looking up the config file
+        throw new NotImplementedException();
+    }
+
+    /**
+     * Perform a migration from the current configuration to a new configuration
+     * @param config New {@link RouteConfig} to migrate to
+     */
+    private void configurationMigration(RouteConfig config) {
+        throw new NotImplementedException();
+    }
+
     /**
      * Initializes the Server for use
      */
-    public void init() {
+    private void init() {
         // TODO write proper initialization
 
         // TODO (JR) Read the static configuration file
@@ -77,51 +135,55 @@ public class Server implements FileChangedErrorHandler, FileChangedHandler {
         /**
          * (JR) Sample of using {@link org.rahmanj.sandshrew.config.FileWatcher} with {@link nio.NioEventLoopGroup}
          */
-        FileWatcher reloader = new FileWatcher(Paths.get("test"), this, this, _workerGroup, 3);
+        _configWatcher = new FileWatcher(Paths.get("test"), this, this, _bossGroup, 3);
+    }
 
-        ProxyServer proxy = new ProxyServer(80, _bossGroup, _workerGroup, NioServerSocketChannel.class);
+    private ProxyServer startProxy(ChannelPromiseAggregator promises, int port) {
 
-        _proxyServers.put(80, proxy);
+        // TODO, add support for binding to a given interface as well
+        ProxyServer proxy = new ProxyServer(port, _bossGroup, _workerGroup, NioServerSocketChannel.class);
 
+        _proxyServers.put(port, proxy);
 
         ChannelFuture channelFuture = proxy.run();
 
         // Aggregate multiple ChannelFutures from each proxy's run() call into a single Promise
-        ChannelPromiseAggregator aggregator = new ChannelPromiseAggregator(channelFuture);
+        promises.add(channelFuture);
 
-        // TODO (JR) Add additional proxies here
-
-    }
-
-    /**
-     * Begin running all the proxy servers, returns immediately
-     * @throws Exception
-     */
-    public void run() throws Exception {
-
-        // Start each proxy independently
-        for (ProxyServer proxy : _proxyServers.values()) {
-            proxy.run();
-        }
+        return proxy;
     }
 
     /**
      * Globally shared {@link EventLoopGroup} for listening sockets
      */
-    public EventLoopGroup _bossGroup;
+    private EventLoopGroup _bossGroup;
 
     /**
      * Globally shared {@link EventLoopGroup} for child sockets
      */
-    public EventLoopGroup _workerGroup;
+    private EventLoopGroup _workerGroup;
 
     /**
      * Store a map of proxies based on their listening port
      */
-    public Map<Integer, ProxyServer> _proxyServers;
+    private Map<Integer, ProxyServer> _proxyServers;
+
+    /**
+     * Path to the configuration file
+     */
+    private Path _configFilePath;
+
+    /**
+     *
+     */
+    private RouteConfigFactory _configFactory;
+
+    /**
+     *
+     */
+    private FileWatcher _configWatcher;
 
     private static final Logger _logger = Logger.getLogger(
             Server.class.getName()
     );
-
 }

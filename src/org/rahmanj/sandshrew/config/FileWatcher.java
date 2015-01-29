@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Standard file watcher routine
  *
- * Created by jprahman on 1/9/15.
+ * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
  */
 public class FileWatcher implements Runnable {
 
@@ -36,11 +36,11 @@ public class FileWatcher implements Runnable {
         }
 
         if (callback == null) {
-            throw new NullPointerException("null callback");
+            throw new NullPointerException("Null callback");
         }
 
         if (errorCallback == null) {
-            throw new NullPointerException("null error callback");
+            throw new NullPointerException("Null error callback");
         }
 
         _callback = callback;
@@ -72,7 +72,7 @@ public class FileWatcher implements Runnable {
         try {
             PosixFileAttributes attrs = view.readAttributes();
 
-            // Fire the callback if either
+            // Fire the callback if either first invocation OR new file
             if (_lastAttrs == null || _lastAttrs.lastModifiedTime().compareTo(attrs.lastModifiedTime()) < 0) {
                 _callback.fileChanged(_filePath);
             }

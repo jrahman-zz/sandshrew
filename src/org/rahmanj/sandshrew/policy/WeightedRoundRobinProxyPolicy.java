@@ -44,7 +44,7 @@ public class WeightedRoundRobinProxyPolicy extends RoundRobinRoutePolicy {
         }
     }
 
-    public class WeightedRoundRobinPolicyFactory extends PolicyFactory {
+    public static class WeightedRoundRobinPolicyFactory extends PolicyFactory {
         public RoutePolicy instantiatePolicy(JsonNode policyNode) {
             throw new NotImplementedException();
         }

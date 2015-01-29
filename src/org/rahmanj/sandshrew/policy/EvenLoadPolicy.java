@@ -79,7 +79,7 @@ public class EvenLoadPolicy implements RoutePolicy {
         _servers.add(server);
     }
 
-    public class EvenLoadPolicyFactory extends PolicyFactory {
+    public static class EvenLoadPolicyFactory extends PolicyFactory {
         public RoutePolicy instantiatePolicy(JsonNode policyNode) {
             throw new NotImplementedException();
         }

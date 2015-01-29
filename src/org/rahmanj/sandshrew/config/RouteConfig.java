@@ -27,8 +27,11 @@ public class RouteConfig {
     /**
      * Private constructor to prevent public instantiation
      */
-    private RouteConfig() {
+    public RouteConfig(List<Route> routes, List<Pool> pools) {
+        _routes = routes;
+        _pools = pools;
 
+        // TODO, create a route resolver
     }
 
     public ProxyRoute lookupRoute(HttpRequest request) {
@@ -40,4 +43,23 @@ public class RouteConfig {
         // TODO implement
         return null;
     }
+
+
+    public List<Route> getRoutes() {
+        return _routes;
+    }
+
+    public List<Pool> getPools() {
+        return _pools;
+    }
+
+    /**
+     *
+     */
+    private List<Route> _routes;
+
+    /**
+     *
+     */
+    private List<Pool> _pools;
 }
