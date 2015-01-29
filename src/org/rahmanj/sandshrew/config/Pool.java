@@ -27,32 +27,34 @@ public class Pool {
     public Pool(JsonNode poolNode, Map<String, PolicyFactory> policyFactories, ServerFactory serverFactory) {
         // TODO, build Pool from config
 
-        if (poolNode.get("name") == null || !poolNode.get("name").isTextual()) {
+        if (!poolNode.has("name") || !poolNode.get("name").isTextual()) {
             throw new IllegalArgumentException("No name for pool");
         }
 
         _poolName = poolNode.get("name").asText();
 
         // Get the information
+        if (!poolNode.has("policy")) {
+            throw new IllegalArgumentException("Not policy for pool " + _poolName);
+        }
         JsonNode policyNode = poolNode.get("policy");
-        if (policyNode == null || policyNode.get("type") == null || !policyNode.get("type").isTextual()) {
+
+        if (!policyNode.has("type") || !policyNode.get("type").isTextual()) {
             throw new IllegalArgumentException("Bad policy name in pool " + _poolName);
         }
 
         String policyName = policyNode.get("type").asText();
         _policy = policyFactories.get(policyName).createPolicy(policyNode);
 
-        JsonNode serversNode = poolNode.get("servers");
-        if (!serversNode.isArray()) {
-            // TODO, make more robust
+        if (!poolNode.has("servers") || !poolNode.get("server").isArray()) {
             throw new IllegalArgumentException("Servers must be a list in pool " + _poolName);
         }
 
+        JsonNode serversNode = poolNode.get("servers");
         _servers = new ArrayList<ServerInfo>();
 
-        ArrayNode serverArray = (ArrayNode)serversNode;
         ServerInfo server;
-        for (JsonNode serverNode : serverArray) {
+        for (JsonNode serverNode : serversNode) {
             server = serverFactory.createServer(serverNode);
             _policy.addDownstreamServer(server, serverNode);
             _servers.add(server);

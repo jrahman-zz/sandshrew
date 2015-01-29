@@ -63,8 +63,8 @@ public class IpHashPolicy implements RoutePolicy {
     }
 
 
-    public class IpHashPolicyFactory implements PolicyFactory {
-        public RoutePolicy createPolicy(JsonNode policyNode) {
+    public class IpHashPolicyFactory extends PolicyFactory {
+        public RoutePolicy instantiatePolicy(JsonNode policyNode) {
             throw new NotImplementedException();
         }
     }

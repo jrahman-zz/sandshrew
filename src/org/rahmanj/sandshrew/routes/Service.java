@@ -6,7 +6,7 @@ package org.rahmanj.sandshrew.routes;
  * For performance reasons, we store a copy of the hash code to avoid rehashing
  * Therefore, DO NOT modify the _hostname and _port fields
  *
- * @uathor Jason P. Rahman (jprahman93@purdue.edu, rahmanj@purdue.edu)
+ * @author Jason P. Rahman (jprahman93@purdue.edu, rahmanj@purdue.edu)
  */
 public class Service {
 

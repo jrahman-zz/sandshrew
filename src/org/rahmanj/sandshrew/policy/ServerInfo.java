@@ -26,8 +26,8 @@ import java.util.logging.Logger;
  */
 public class ServerInfo extends Service implements ServerInfoInterface {
 
-    public ServerInfo(JsonNode node) throws URISyntaxException {
-        super((new URI(node.get("server").asText())).getHost(), (new URI(node.get("server").asText())).getPort());
+    public ServerInfo(JsonNode serverNode) throws URISyntaxException {
+        super((new URI(serverNode.get("server").asText())).getHost(), (new URI(serverNode.get("server").asText())).getPort());
         _stats = new ServerStats();
         _isDown = false;
 
@@ -144,5 +144,4 @@ public class ServerInfo extends Service implements ServerInfoInterface {
     private static final Logger _logger = Logger.getLogger(
             ServerInfo.class.getName()
     );
-
 }

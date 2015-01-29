@@ -1,6 +1,8 @@
 package org.rahmanj.sandshrew.policy;
 
 /**
+ * Interfaces to listen for server throttle status change events
+ *
  * @author Jason P. Rahman (jprahman93@gmail.com, rahmanj@purdue.edu)
  */
 public interface ThrottleListener {

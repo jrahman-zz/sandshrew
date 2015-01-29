@@ -28,20 +28,18 @@ public class RouteConfigFactory {
 
     public RouteConfig buildRouteConfig(Path filePath) throws IOException {
 
-        // TODO (JR) Open file
-
-        // TODO (JR) Read contents
-
         ObjectMapper mapper = new ObjectMapper();
         JsonNode configNode = mapper.readTree(Files.newInputStream(filePath));
 
-        if (configNode.get("pools") == null || !configNode.get("pools").isArray()) {
+        // Get the pools first since the routes are dependant on the pools
+        if (!configNode.has("pools") || !configNode.get("pools").isArray()) {
             throw new IllegalArgumentException("No pools defined");
         }
         JsonNode poolsNode = configNode.get("pools");
         Map<String, Pool> pools = parsePools(poolsNode);
 
-        if (configNode.get("routes") == null || !configNode.get("routes").isArray()) {
+        // Get the routes now that we have the pools
+        if (!configNode.has("routes") || !configNode.get("routes").isArray()) {
             throw new IllegalArgumentException("No routes defined");
         }
         JsonNode routesNode = configNode.get("routes");
@@ -51,7 +49,7 @@ public class RouteConfigFactory {
     }
 
     /**
-     * Parse the {@link Pool}s
+     * Parse the {@link Pool}s from the configuration file
      * @param poolsNode {@link JsonNode} of an array containing {@link Pool}s
      * @return
      */
@@ -71,7 +69,7 @@ public class RouteConfigFactory {
             } catch (IllegalArgumentException e) {
                 // DO we warn, or crash??
             } catch (Exception e) {
-
+                throw new NotImplementedException();
             }
         }
 
@@ -84,7 +82,21 @@ public class RouteConfigFactory {
      * @return
      */
     private Map<String, Route> parseRoutes(JsonNode routesNode, Map<String, Pool> pools) {
-        throw new NotImplementedException();
+        Map<String, Route> routes = new HashMap<String, Route>();
+
+        Route route;
+        for (JsonNode routeNode : routesNode) {
+            try {
+                route = new Route(routeNode, pools);
+                // TODO, insert into the routes list
+            } catch (IllegalArgumentException e) {
+                throw new NotImplementedException();
+            } catch (Exception e) {
+                throw new NotImplementedException();
+            }
+        }
+        
+        return routes;
     }
 
     /**

@@ -72,8 +72,8 @@ public class RoundRobinRoutePolicy implements RoutePolicy {
         _servers.add(server);
     }
 
-    public class RoundRobinPolicyFactory implements PolicyFactory {
-        public RoutePolicy createPolicy(JsonNode policyNode) {
+    public class RoundRobinPolicyFactory extends PolicyFactory {
+        public RoutePolicy instantiatePolicy(JsonNode policyNode) {
             throw new NotImplementedException();
         }
     }

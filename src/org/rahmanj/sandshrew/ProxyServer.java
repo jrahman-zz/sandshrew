@@ -24,6 +24,7 @@ public class ProxyServer {
 
     /**
      * Create a proxy server listening on a given port
+     *
      * @param port The port on which to listen for incoming connections
      * @param bossGroup The shared {@link EventLoopGroup} to use listen for incoming connections with
      * @param workerGroup The shared {@link EventLoopGroup} to use for handling connections
@@ -90,6 +91,7 @@ public class ProxyServer {
      * Main {@link ServerBootstrap} for the proxy
      */
     private ServerBootstrap _bootstrap;
+
 
     /**
      * Implementation {@link Class} for the {@link ServerSocketChannel}

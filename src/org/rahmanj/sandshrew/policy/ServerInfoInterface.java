@@ -29,7 +29,7 @@ public interface ServerInfoInterface {
     /**
      * Determines if the given downstream server is up or down
      *
-     * @return True ifthe downstream is down, false otherwise
+     * @return True if the downstream is down, false otherwise
      */
     public boolean isDown();
 
