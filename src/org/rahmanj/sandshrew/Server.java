@@ -9,9 +9,11 @@ import org.rahmanj.sandshrew.policy.*;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
+import java.net.SocketAddress;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -22,26 +24,6 @@ import java.util.logging.Logger;
  * @author Jason P. Rahman
  */
 public class Server implements FileChangedErrorHandler, FileChangedHandler {
-
-    public Server(String configFilePath) {
-
-        _configFilePath = Paths.get(configFilePath);
-        _proxyServers = new HashMap<Integer, ProxyServer>();
-
-
-        // TODO, refactor this
-
-        // Create all possible policies
-        Map<String, PolicyFactory> policyFactories = new HashMap<String, PolicyFactory>();
-        policyFactories.put("ip_hash", new IpHashPolicy.IpHashPolicyFactory());
-        policyFactories.put("even_load", new EvenLoadPolicy.EvenLoadPolicyFactory());
-        policyFactories.put("round_robin", new RoundRobinRoutePolicy.RoundRobinPolicyFactory());
-        policyFactories.put("weighted_round_robin", new WeightedRoundRobinProxyPolicy.WeightedRoundRobinPolicyFactory());
-
-        ServerFactory serverFactory = new ServerFactory();
-
-        _configFactory = new RouteConfigFactory(policyFactories, serverFactory);
-    }
 
 
     /**
@@ -68,12 +50,25 @@ public class Server implements FileChangedErrorHandler, FileChangedHandler {
         }
     }
 
-    public void fileChanged(Path filePath) {
-        // TODO (JR) Stub later
-    }
+    public Server(String configFilePath) {
 
-    public void fileAccessError(IOException exception) {
-        // TODO (JR) Stub later
+        _config = null;
+        _configFilePath = Paths.get(configFilePath);
+        _proxyServers = new HashMap<SocketAddress, ProxyServer>();
+
+        _running = false;
+        // TODO, refactor this
+
+        // Create all possible policies
+        Map<String, PolicyFactory> policyFactories = new HashMap<String, PolicyFactory>();
+        policyFactories.put("ip_hash", new IpHashPolicy.IpHashPolicyFactory());
+        policyFactories.put("even_load", new EvenLoadPolicy.EvenLoadPolicyFactory());
+        policyFactories.put("round_robin", new RoundRobinRoutePolicy.RoundRobinPolicyFactory());
+        policyFactories.put("weighted_round_robin", new WeightedRoundRobinProxyPolicy.WeightedRoundRobinPolicyFactory());
+
+        ServerFactory serverFactory = new ServerFactory();
+
+        _configFactory = new RouteConfigFactory(policyFactories, serverFactory);
     }
 
 
@@ -83,10 +78,8 @@ public class Server implements FileChangedErrorHandler, FileChangedHandler {
      */
     public void run() throws Exception {
 
-        // Start each proxy independently
-        for (ProxyServer proxy : _proxyServers.values()) {
-            proxy.run();
-        }
+        init();
+        _running = true;
     }
 
     public void onFileChanged(Path filePath) {
@@ -99,10 +92,11 @@ public class Server implements FileChangedErrorHandler, FileChangedHandler {
             throw new NotImplementedException();
         }
 
-        configurationMigration(config);
+        // Install the new configuration
+        installConfig(config);
     }
 
-    public void onFileChangedError(IOException e) {
+    public void onFileAccessError(IOException e) {
         // Handle errors when looking up the config file
         throw new NotImplementedException();
     }
@@ -111,8 +105,56 @@ public class Server implements FileChangedErrorHandler, FileChangedHandler {
      * Perform a migration from the current configuration to a new configuration
      * @param config New {@link RouteConfig} to migrate to
      */
-    private void configurationMigration(RouteConfig config) {
+    private void installConfig(RouteConfig config) {
+
+        // New config
+        if (_config == null) {
+            _config = config;
+            launchProxies();
+        } else {
+
+        }
         throw new NotImplementedException();
+    }
+
+    /**
+     *
+     * @param config
+     */
+    private void migrateConfig(RouteConfig config) {
+
+        Set<Route> newInterfaces = new HashSet<Route>();
+        for (Route route : config.getRoutes()) {
+            newInterfaces.add(route);
+        }
+
+        Set<Route> existingInterfaces = new HashSet<Route>();
+        for (Route route : _config.getRoutes()) {
+            existingInterfaces.add(route);
+        }
+
+        // Find the now active interfaces, and the old interfaces to be removes
+        Set<Route> interfacesToRemove = new HashSet<Route>(existingInterfaces);
+        interfacesToRemove.removeAll(newInterfaces);
+        Set<Route> interfacesToAdd = new HashSet<Route>(newInterfaces);
+        interfacesToAdd.removeAll(existingInterfaces);
+
+        _logger.fine("Adding " + interfacesToAdd.size() + " interfaces, and removing " + interfacesToRemove.size());
+        for (Route route : interfacesToRemove) {
+            // TODO, remove
+        }
+
+        // TODO, flip the config of living listeners
+        for (ProxyServer server : _proxyServers.values()) {
+            server.updateConfig(config);
+        }
+
+        for (Route route : interfacesToAdd) {
+
+        }
+
+        // Flip the master config
+        _config = config;
     }
 
     /**
@@ -138,12 +180,19 @@ public class Server implements FileChangedErrorHandler, FileChangedHandler {
         _configWatcher = new FileWatcher(Paths.get("test"), this, this, _bossGroup, 3);
     }
 
-    private ProxyServer startProxy(ChannelPromiseAggregator promises, int port) {
+    /**
+     * Launch the proxies
+     */
+    private void launchProxies() {
+        throw new NotImplementedException();
+    }
+
+    private ProxyServer startProxy(ChannelPromiseAggregator promises, SocketAddress address) {
 
         // TODO, add support for binding to a given interface as well
-        ProxyServer proxy = new ProxyServer(port, _bossGroup, _workerGroup, NioServerSocketChannel.class);
+        ProxyServer proxy = new ProxyServer(address, _bossGroup, _workerGroup, NioServerSocketChannel.class);
 
-        _proxyServers.put(port, proxy);
+        _proxyServers.put(address, proxy);
 
         ChannelFuture channelFuture = proxy.run();
 
@@ -166,12 +215,22 @@ public class Server implements FileChangedErrorHandler, FileChangedHandler {
     /**
      * Store a map of proxies based on their listening port
      */
-    private Map<Integer, ProxyServer> _proxyServers;
+    private Map<SocketAddress, ProxyServer> _proxyServers;
 
     /**
      * Path to the configuration file
      */
     private Path _configFilePath;
+
+    /**
+     *
+     */
+    private RouteConfig _config;
+
+    /**
+     *
+     */
+    private boolean _running;
 
     /**
      *

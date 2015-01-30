@@ -74,11 +74,11 @@ public class FileWatcher implements Runnable {
 
             // Fire the callback if either first invocation OR new file
             if (_lastAttrs == null || _lastAttrs.lastModifiedTime().compareTo(attrs.lastModifiedTime()) < 0) {
-                _callback.fileChanged(_filePath);
+                _callback.onFileChanged(_filePath);
             }
             _lastAttrs = attrs;
         } catch (IOException e) {
-            _errorCallback.fileAccessError(e);
+            _errorCallback.onFileAccessError(e);
         }
     }
 

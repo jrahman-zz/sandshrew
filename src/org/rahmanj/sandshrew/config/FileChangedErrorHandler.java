@@ -7,5 +7,5 @@ import java.io.IOException;
  */
 public interface FileChangedErrorHandler {
 
-    public void fileAccessError(IOException exception);
+    public void onFileAccessError(IOException exception);
 }

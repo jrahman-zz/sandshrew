@@ -8,7 +8,10 @@ import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.handler.ssl.SslContext;
 
 import org.eclipse.jetty.npn.NextProtoNego;
+import org.rahmanj.sandshrew.config.RouteConfig;
 
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.logging.Logger;
 
 
@@ -21,32 +24,35 @@ import java.util.logging.Logger;
  */
 public class ProxyServer {
 
-
     /**
      * Create a proxy server listening on a given port
      *
-     * @param port The port on which to listen for incoming connections
+     * @param address The {@link SocketAddress} to bind this {@link SocketAddress} to listen for connections on
+     * @param config The {@link RouteConfig} for the server
      * @param bossGroup The shared {@link EventLoopGroup} to use listen for incoming connections with
      * @param workerGroup The shared {@link EventLoopGroup} to use for handling connections
      * @param serverSocketChannelClass The {@link Class} to use for the server {@link SocketChannel}
      */
-    public ProxyServer(int port, EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class serverSocketChannelClass) {
-        _port = port;
+    public ProxyServer(SocketAddress address, RouteConfig config, EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class serverSocketChannelClass) {
+        _address = _address;
         _bossGroup = bossGroup;
         _workerGroup = workerGroup;
+        _config = config;
 
         // TODO (JR) Init the SSLContext
         _sslContext = null;
 
         _bootstrap = new ServerBootstrap();
         _serverSocketChannelClass = serverSocketChannelClass;
+
+        _initializer = new ProxyChannelInitializer(_sslContext, _workerGroup, _config);
     }
 
     /**
-     * Run the given proxy server, blocks until the server finishes running
+     * Run the given {@link ProxyServer}, blocks until the server finishes running
      * 
      * @return A {@link ChannelFuture} that can be waited upon to indicate closure of the listening socket
-     * @throws Exception
+     * @throws {@link Exception}
      */
     public ChannelFuture run() throws Exception {
 
@@ -55,11 +61,12 @@ public class ProxyServer {
                 .option(ChannelOption.SO_BACKLOG, 128)
                 .childOption(ChannelOption.SO_KEEPALIVE, true)
                 // This is where we need to handle configuration changes, we reset this
-                .childHandler(new ProxyChannelInitializer(_sslContext, _workerGroup));
+                .childHandler(_initializer);
 
         // Bind the accepting socket and start running
-        // TODO (JR) This looks like it's blocking, does it need to be made asynchronous??
-        ChannelFuture f = _bootstrap.bind(_port).sync();
+        // TODO (JR) This looks like it's blocking, does it need to be made asynchronous??;
+        ChannelFuture f = _bootstrap.bind(_address);
+        f.sync();
 
         // Wait until the server socket is closed
         // In this example this will not happen, but
@@ -68,9 +75,18 @@ public class ProxyServer {
     }
 
     /**
+     *
+     * @param config
+     */
+    public void updateConfig(RouteConfig config) {
+        _config = config;
+        _initializer.updateConfig(config);
+    }
+
+    /**
      * Port this given proxy should listen on
      */
-    int _port;
+    private SocketAddress _address;
 
     /**
      * Globally shared {@link EventLoopGroup} for the listening socket
@@ -92,6 +108,15 @@ public class ProxyServer {
      */
     private ServerBootstrap _bootstrap;
 
+    /**
+     * {@link ProxyChannelInitializer} for the proxy channel
+     */
+    private ProxyChannelInitializer _initializer;
+
+    /**
+     * {@link RouteConfig} for the server
+     */
+    private RouteConfig _config;
 
     /**
      * Implementation {@link Class} for the {@link ServerSocketChannel}

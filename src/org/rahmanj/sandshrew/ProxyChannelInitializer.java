@@ -7,6 +7,7 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslContext;
+import org.rahmanj.sandshrew.config.RouteConfig;
 
 
 /**
@@ -22,11 +23,13 @@ class ProxyChannelInitializer<T extends Channel> extends ChannelInitializer<T> {
      *
      * @param sslContext
      * @param workerGroup
+     * @param config
      */
-    public ProxyChannelInitializer(SslContext sslContext, EventLoopGroup workerGroup) {
+    public ProxyChannelInitializer(SslContext sslContext, EventLoopGroup workerGroup, RouteConfig config) {
         // TODO, later include some config stuff in here
         _sslContext = sslContext;
         _workerGroup = workerGroup;
+        _config = config;
     }
 
     /**
@@ -45,8 +48,17 @@ class ProxyChannelInitializer<T extends Channel> extends ChannelInitializer<T> {
         // Build pipeline between client and proxy
         // Note that ProxySpdyOrHttpChooser actually handles all the details
         // regarding how the pipeline is created
-        UpstreamHandler handler = new UpstreamHandler(_workerGroup);
+        UpstreamHandler handler = new UpstreamHandler(_workerGroup, _config);
         p.addLast(new ProxySpdyOrHttpChooser(handler, handler));
+    }
+
+    /**
+     * Update the currently active {@link RouteConfig}
+     * @param config {@link RouteConfig} to use
+     */
+    public void updateConfig(RouteConfig config) {
+        _config = config;
+        // TODO, concurrency concerns here!!!
     }
 
     /**
@@ -59,4 +71,9 @@ class ProxyChannelInitializer<T extends Channel> extends ChannelInitializer<T> {
      * to be cooperatively scheduled regardless of whether they are upstream or downstream operations
      */
     private EventLoopGroup _workerGroup;
+
+    /**
+     * {@link RouteConfig} for the server
+     */
+    private RouteConfig _config;
 }

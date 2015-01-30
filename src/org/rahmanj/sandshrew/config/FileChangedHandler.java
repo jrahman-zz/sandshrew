@@ -10,5 +10,5 @@ import java.nio.file.Path;
  */
 public interface FileChangedHandler {
 
-    public void fileChanged(Path filePath);
+    public void onFileChanged(Path filePath);
 }

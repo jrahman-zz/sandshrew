@@ -14,6 +14,7 @@ import java.util.logging.Logger;
 
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.util.concurrent.GenericFutureListener;
+import org.rahmanj.sandshrew.config.RouteConfig;
 import org.rahmanj.sandshrew.policy.ServerInfo;
 import org.rahmanj.sandshrew.policy.RequestContext;
 import org.rahmanj.sandshrew.routes.ProxyRoute;
@@ -29,7 +30,7 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
      * Construct an instance of the UpstreamHandler using the given EventLoopGroup
      * @param workerGroup The shared EventLoopGroup to use for async IO
      */
-    public UpstreamHandler(EventLoopGroup workerGroup) {
+    public UpstreamHandler(EventLoopGroup workerGroup, RouteConfig config) {
         _workerGroup = workerGroup;
         _writable = true; // Sane default
         _remoteIdentifier = null;
@@ -37,12 +38,12 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
         _channel = null;
         _remoteAddress = null;
 
+        _config = config;
+
         _downstreamServer = null;
         _downstreamClient = null;
         _throttled = false;
     }
-
-
 
     /**
      * Send a given {@link HttpObject} over the {@link ProxyChannel}. This method is asynchronous.
@@ -385,6 +386,8 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
         ClientConnectionListener(ProxyChannel client) {
             _client = client; // Temp hack until we have DownstreamClientFuture
         }
+
+        // TODO, document this more
         public void operationComplete(ChannelFuture future) {
             if (future.isSuccess()) {
                 downstreamConnected(_client);
@@ -409,6 +412,11 @@ public class UpstreamHandler extends ChannelInboundHandlerAdapter implements Pro
      * {@link Channel} this handler is managing
      */
     private Channel _channel;
+
+    /**
+     *
+     */
+    private RouteConfig _config;
 
     /**
      * {@link InetSocketAddress} for the remote upstream client
